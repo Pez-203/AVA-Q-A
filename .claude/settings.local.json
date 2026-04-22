@@ -2,7 +2,12 @@
   "permissions": {
     "allow": [
       "Bash(npm install *)",
-      "Bash(node *)"
+      "Bash(node *)",
+      "Bash(adb logcat *)",
+      "Bash(adb devices *)",
+      "Bash(mkdir -p \"C:/Proyectos\")",
+      "Bash(cp -r \"C:/Users/jerry/OneDrive/Documentos/AVA-Q-A\" \"C:/Proyectos/AVA-Q-A\")",
+      "Bash(rsync -av --exclude='.gradle' --exclude='build' --exclude='.idea' \"C:/Users/jerry/OneDrive/Documentos/AVA-Q-A/\" \"C:/Proyectos/AVA-Q-A/\")"
     ]
   }
 }
