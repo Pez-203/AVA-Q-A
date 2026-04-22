@@ -34,6 +34,15 @@
                 android:layout_marginTop="4dp"
                 android:textColor="#555555"
                 android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/imageInfoText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textColor="@color/blue_primary"
+                android:textSize="12sp"
+                android:visibility="gone" />
         </LinearLayout>
 
         <ImageButton

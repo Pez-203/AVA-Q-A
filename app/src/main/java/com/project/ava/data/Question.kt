@@ -21,5 +21,8 @@ data class Question(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val categoryId: Long,
     val questionText: String,
-    val answerText: String
+    val answerText: String,
+    val imageName: String? = null,
+    val imageOffsetX: Int = 0,
+    val imageOffsetY: Int = 0
 )

@@ -3,8 +3,12 @@ package com.project.ava
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.BitmapFactory
 import android.os.Bundle
+import android.util.TypedValue
 import android.view.View
+import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -177,6 +181,12 @@ class MainActivity : AppCompatActivity() {
             .start()
     }
 
+    private fun dpToPx(dp: Int): Float {
+        return TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP, dp.toFloat(), resources.displayMetrics
+        )
+    }
+
     private fun showBottomSheet(title: String, questions: List<Question>) {
         val dialog = BottomSheetDialog(this)
         val view = layoutInflater.inflate(R.layout.bottom_sheet_questions, null)
@@ -188,15 +198,36 @@ class MainActivity : AppCompatActivity() {
             val questionView =
                 layoutInflater.inflate(R.layout.item_question_answer, container, false)
             val questionText = questionView.findViewById<TextView>(R.id.questionText)
+            val answerContainer = questionView.findViewById<LinearLayout>(R.id.answerContainer)
             val answerText = questionView.findViewById<TextView>(R.id.answerText)
+            val imageContainer = questionView.findViewById<FrameLayout>(R.id.imageContainer)
+            val answerImage = questionView.findViewById<ImageView>(R.id.answerImage)
 
             questionText.text = question.questionText
             answerText.text = question.answerText
-            answerText.visibility = View.GONE
+
+            if (question.imageName != null) {
+                try {
+                    val stream = assets.open("qr/${question.imageName}")
+                    val bitmap = BitmapFactory.decodeStream(stream)
+                    stream.close()
+                    if (bitmap != null) {
+                        answerImage.setImageBitmap(bitmap)
+                        answerImage.translationX = dpToPx(question.imageOffsetX)
+                        answerImage.translationY = dpToPx(question.imageOffsetY)
+                        imageContainer.visibility = View.VISIBLE
+                    }
+                } catch (_: Exception) {
+                    imageContainer.visibility = View.GONE
+                }
+            }
 
             questionView.setOnClickListener {
-                answerText.visibility =
-                    if (answerText.visibility == View.GONE) View.VISIBLE else View.GONE
+                if (answerContainer.visibility == View.GONE) {
+                    answerContainer.visibility = View.VISIBLE
+                } else {
+                    answerContainer.visibility = View.GONE
+                }
             }
 
             container.addView(questionView)

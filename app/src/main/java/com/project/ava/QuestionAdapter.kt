@@ -1,6 +1,7 @@
 package com.project.ava
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.project.ava.data.Question
@@ -26,6 +27,13 @@ class QuestionAdapter(
         val question = questions[position]
         holder.binding.questionText.text = question.questionText
         holder.binding.answerText.text = question.answerText
+        if (question.imageName != null) {
+            holder.binding.imageInfoText.text =
+                "IMG: ${question.imageName} (X:${question.imageOffsetX}, Y:${question.imageOffsetY})"
+            holder.binding.imageInfoText.visibility = View.VISIBLE
+        } else {
+            holder.binding.imageInfoText.visibility = View.GONE
+        }
         holder.binding.btnEdit.setOnClickListener { onEdit(question) }
         holder.binding.btnDelete.setOnClickListener { onDelete(question) }
     }

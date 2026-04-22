@@ -1,7 +1,11 @@
 package com.project.ava
 
+import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.view.View
+import android.widget.ImageView
+import android.widget.SeekBar
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -66,14 +70,95 @@ class AdminQuestionsActivity : AppCompatActivity() {
         }
     }
 
+    private fun listAssetImages(): List<String> {
+        val images = mutableListOf<String>()
+        try {
+            val qrFiles = assets.list("qr") ?: emptyArray()
+            for (f in qrFiles) {
+                if (f.endsWith(".png", ignoreCase = true) || f.endsWith(".jpg", ignoreCase = true)) {
+                    images.add(f)
+                }
+            }
+        } catch (_: Exception) {}
+        return images
+    }
+
+    private fun loadAssetImage(imageView: ImageView, imageName: String): Boolean {
+        return try {
+            val stream = assets.open("qr/$imageName")
+            val bitmap = BitmapFactory.decodeStream(stream)
+            stream.close()
+            if (bitmap != null) {
+                imageView.setImageBitmap(bitmap)
+                imageView.visibility = View.VISIBLE
+                true
+            } else {
+                imageView.visibility = View.GONE
+                false
+            }
+        } catch (_: Exception) {
+            imageView.visibility = View.GONE
+            false
+        }
+    }
+
     private fun showQuestionDialog(question: Question?) {
         val view = layoutInflater.inflate(R.layout.dialog_question, null)
         val questionInput = view.findViewById<TextInputEditText>(R.id.inputQuestion)
         val answerInput = view.findViewById<TextInputEditText>(R.id.inputAnswer)
+        val imageNameInput = view.findViewById<TextInputEditText>(R.id.inputImageName)
+        val labelAvailable = view.findViewById<TextView>(R.id.labelAvailableImages)
+        val imagePreview = view.findViewById<ImageView>(R.id.imagePreview)
+        val seekBarX = view.findViewById<SeekBar>(R.id.seekBarX)
+        val seekBarY = view.findViewById<SeekBar>(R.id.seekBarY)
+        val labelX = view.findViewById<TextView>(R.id.labelOffsetX)
+        val labelY = view.findViewById<TextView>(R.id.labelOffsetY)
+
+        val availableImages = listAssetImages()
+        if (availableImages.isNotEmpty()) {
+            labelAvailable.text = "Disponibles: ${availableImages.joinToString(", ")}"
+        } else {
+            labelAvailable.text = "No hay imágenes en assets/qr/"
+        }
 
         question?.let {
             questionInput.setText(it.questionText)
             answerInput.setText(it.answerText)
+            it.imageName?.let { name ->
+                imageNameInput.setText(name)
+                loadAssetImage(imagePreview, name)
+            }
+            seekBarX.progress = it.imageOffsetX + 200
+            seekBarY.progress = it.imageOffsetY + 200
+            labelX.text = "Posición X: ${it.imageOffsetX} dp"
+            labelY.text = "Posición Y: ${it.imageOffsetY} dp"
+        }
+
+        seekBarX.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
+                labelX.text = "Posición X: ${progress - 200} dp"
+            }
+            override fun onStartTrackingTouch(sb: SeekBar?) {}
+            override fun onStopTrackingTouch(sb: SeekBar?) {}
+        })
+
+        seekBarY.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
+                labelY.text = "Posición Y: ${progress - 200} dp"
+            }
+            override fun onStartTrackingTouch(sb: SeekBar?) {}
+            override fun onStopTrackingTouch(sb: SeekBar?) {}
+        })
+
+        imageNameInput.setOnFocusChangeListener { _, hasFocus ->
+            if (!hasFocus) {
+                val name = imageNameInput.text.toString().trim()
+                if (name.isNotEmpty()) {
+                    loadAssetImage(imagePreview, name)
+                } else {
+                    imagePreview.visibility = View.GONE
+                }
+            }
         }
 
         AlertDialog.Builder(this)
@@ -86,6 +171,10 @@ class AdminQuestionsActivity : AppCompatActivity() {
                     Toast.makeText(this, "Completa todos los campos", Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
+                val imgName = imageNameInput.text.toString().trim().ifEmpty { null }
+                val offX = seekBarX.progress - 200
+                val offY = seekBarY.progress - 200
+
                 scope.launch {
                     withContext(Dispatchers.IO) {
                         if (question == null) {
@@ -93,12 +182,21 @@ class AdminQuestionsActivity : AppCompatActivity() {
                                 Question(
                                     categoryId = categoryId,
                                     questionText = qText,
-                                    answerText = aText
+                                    answerText = aText,
+                                    imageName = imgName,
+                                    imageOffsetX = offX,
+                                    imageOffsetY = offY
                                 )
                             )
                         } else {
                             database.questionDao().update(
-                                question.copy(questionText = qText, answerText = aText)
+                                question.copy(
+                                    questionText = qText,
+                                    answerText = aText,
+                                    imageName = imgName,
+                                    imageOffsetX = offX,
+                                    imageOffsetY = offY
+                                )
                             )
                         }
                     }
