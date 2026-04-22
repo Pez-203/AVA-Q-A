@@ -28,15 +28,6 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name=".AdminActivity"
-            android:screenOrientation="portrait"
-            android:parentActivityName=".MainActivity" />
-
-        <activity
-            android:name=".AdminQuestionsActivity"
-            android:screenOrientation="portrait"
-            android:parentActivityName=".AdminActivity" />
     </application>
 
 </manifest>

@@ -31,12 +31,6 @@
             android:textStyle="bold" />
     </LinearLayout>
 
-    <View
-        android:id="@+id/adminTrigger"
-        android:layout_width="60dp"
-        android:layout_height="60dp"
-        android:layout_gravity="end|top" />
-
     <TextView
         android:id="@+id/scanInstruction"
         android:layout_width="wrap_content"

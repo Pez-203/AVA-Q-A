@@ -1,7 +1,6 @@
 package com.project.ava
 
 import android.Manifest
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.os.Bundle
@@ -66,11 +65,6 @@ class MainActivity : AppCompatActivity() {
 
         database = AppDatabase.getInstance(this)
         cameraExecutor = Executors.newSingleThreadExecutor()
-
-        binding.adminTrigger.setOnLongClickListener {
-            startActivity(Intent(this, AdminActivity::class.java))
-            true
-        }
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
             == PackageManager.PERMISSION_GRANTED
