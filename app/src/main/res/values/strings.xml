@@ -1,3 +1,38 @@
 <resources>
     <string name="app_name">AVA - Escolar FIME</string>
+    <string name="app_title">App AVA Q&amp;A</string>
+    <string name="scan_instruction">Escanea un código QR válido</string>
+    <string name="btn_scan">ESCANEAR QR</string>
+    <string name="btn_close">Cerrar</string>
+    <string name="btn_other_questions">Otras Preguntas</string>
+    <string name="btn_questions">Preguntas</string>
+    <string name="btn_accept">Aceptar</string>
+    <string name="btn_deny">Denegar</string>
+    <string name="permission_camera_title">Permiso de Cámara</string>
+    <string name="permission_camera_message">Esta aplicación necesita acceso a tu cámara para escanear códigos QR.</string>
+    <string name="permission_denied_title">Permiso Denegado</string>
+    <string name="permission_denied_message">No se puede escanear sin permiso de cámara. Habilítalo en ajustes.</string>
+    <string name="qr_invalid">QR Inválido</string>
+    <string name="qr_invalid_message">El código escaneado no está registrado.</string>
+    <string name="qr_success">QR Exitoso</string>
+    <string name="loading_title">Cargando Recursos…</string>
+    <string name="step_scanned">Escaneado</string>
+    <string name="step_validated">Validado</string>
+    <string name="step_loading">Cargando</string>
+    <string name="did_you_know">Sabías que…</string>
+    <string name="faq_title">Preguntas Frecuentes</string>
+    <string name="ava_another_question">¿Tienes otra duda?</string>
+    <string name="ava_help_response">Claro, puedes seleccionar otra pregunta del menú o cerrar la aplicación.</string>
+    <string name="ava_welcome_tip">AVA puede responder preguntas del sector escaneado</string>
+    <string name="content_desc_ava">Asistente Virtual AVA</string>
+    <string name="content_desc_back">Regresar</string>
+    <string name="content_desc_qr">Código QR</string>
+
+    <string-array name="fun_facts">
+        <item>AVA puede responder preguntas del sector escaneado</item>
+        <item>FIME fue fundada en 1947</item>
+        <item>Puedes consultar tus trámites en SIASE</item>
+        <item>El Servicio Social requiere 480 horas mínimo</item>
+        <item>Puedes pagar tu reinscripción en línea o en Banorte</item>
+    </string-array>
 </resources>

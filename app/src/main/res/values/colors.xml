@@ -2,7 +2,18 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
-    <color name="blue_primary">#1565C0</color>
-    <color name="blue_dark">#0D47A1</color>
-    <color name="blue_light">#1E88E5</color>
+
+    <color name="green_primary">#1B5E20</color>
+    <color name="green_dark">#0D3B0E</color>
+    <color name="green_light">#4CAF50</color>
+    <color name="green_surface">#E8F5E9</color>
+
+    <color name="yellow_accent">#FFC107</color>
+    <color name="yellow_light">#FFF8E1</color>
+
+    <color name="gray_text">#555555</color>
+    <color name="gray_light">#E0E0E0</color>
+
+    <color name="chat_bubble_user">#E8F5E9</color>
+    <color name="chat_bubble_ava">#FFFFFF</color>
 </resources>

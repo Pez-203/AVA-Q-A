@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/homeFragment">
+
+    <fragment
+        android:id="@+id/homeFragment"
+        android:name="com.project.ava.HomeFragment"
+        android:label="Home">
+        <action
+            android:id="@+id/action_home_to_scanner"
+            app:destination="@id/scannerFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/scannerFragment"
+        android:name="com.project.ava.ScannerFragment"
+        android:label="Scanner">
+        <action
+            android:id="@+id/action_scanner_to_loading"
+            app:destination="@id/loadingFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/loadingFragment"
+        android:name="com.project.ava.LoadingFragment"
+        android:label="Loading">
+        <argument
+            android:name="qrCode"
+            app:argType="string" />
+        <action
+            android:id="@+id/action_loading_to_questions"
+            app:destination="@id/questionsFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/questionsFragment"
+        android:name="com.project.ava.QuestionsFragment"
+        android:label="Questions">
+        <argument
+            android:name="categoryId"
+            app:argType="long" />
+        <argument
+            android:name="categoryTitle"
+            app:argType="string" />
+        <action
+            android:id="@+id/action_questions_to_chat"
+            app:destination="@id/chatFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/chatFragment"
+        android:name="com.project.ava.ChatFragment"
+        android:label="Chat">
+        <argument
+            android:name="questionText"
+            app:argType="string" />
+        <argument
+            android:name="answerText"
+            app:argType="string" />
+    </fragment>
+
+</navigation>
