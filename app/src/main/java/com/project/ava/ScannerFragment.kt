@@ -7,6 +7,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
@@ -48,7 +49,7 @@ class ScannerFragment : Fragment() {
         if (granted) {
             startCamera()
         } else {
-            showStatus(getString(R.string.permission_denied_title), isError = true)
+            findNavController().popBackStack()
         }
     }
 
@@ -66,8 +67,23 @@ class ScannerFragment : Fragment() {
         database = AppDatabase.getInstance(requireContext())
         cameraExecutor = Executors.newSingleThreadExecutor()
 
+        binding.cameraCard.clipToOutline = true
+
         binding.btnBack.setOnClickListener {
             findNavController().popBackStack()
+        }
+
+        binding.btnHelp.setOnClickListener {
+            showHelpDialog()
+        }
+
+        binding.btnScan.setOnClickListener {
+            findNavController().popBackStack()
+        }
+
+        binding.btnRetry.setOnClickListener {
+            binding.errorOverlay.visibility = View.GONE
+            isProcessing = false
         }
 
         if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.CAMERA)
@@ -157,11 +173,7 @@ class ScannerFragment : Fragment() {
                     }
                 }, 800)
             } else {
-                showStatus(getString(R.string.qr_invalid), isError = true)
-                binding.root.postDelayed({
-                    isProcessing = false
-                    binding.statusCard.visibility = View.GONE
-                }, 2000)
+                binding.errorOverlay.visibility = View.VISIBLE
             }
         }
     }
@@ -184,6 +196,14 @@ class ScannerFragment : Fragment() {
                 ContextCompat.getColor(requireContext(), R.color.green_primary)
             )
         }
+    }
+
+    private fun showHelpDialog() {
+        AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.help_title))
+            .setMessage(getString(R.string.help_message))
+            .setPositiveButton(getString(R.string.btn_accept), null)
+            .show()
     }
 
     override fun onDestroyView() {

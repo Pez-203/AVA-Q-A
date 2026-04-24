@@ -28,6 +28,9 @@
     <string name="scan_instruction_subtitle">Apunta tu cámara hacia el código para continuar.</string>
     <string name="permission_camera_ar_message">Esta aplicación necesita acceso a tu cámara para escanear códigos QR y mostrar contenido AR.</string>
     <string name="btn_allow">Permitir</string>
+    <string name="permission_denied_camera">Cámara no disponible</string>
+    <string name="scan_hint">Alinea el código dentro del marco</string>
+    <string name="qr_invalid_retry">Reintentar escaneo</string>
     <string name="help_title">¿Qué es AVA?</string>
     <string name="help_message">AVA (Asistente Virtual Académico) es tu asistente digital en FIME, diseñada para ayudarte con información sobre trámites escolares.\n\n¿Cómo funciona?\n1. Escanea el código QR del área correspondiente\n2. Selecciona tu pregunta de la lista\n3. AVA te proporcionará la respuesta\n\nActualmente AVA puede ayudarte con información sobre Reinscripción y Titulación.</string>
     <string name="content_desc_ava">Asistente Virtual AVA</string>

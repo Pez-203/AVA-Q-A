@@ -22,6 +22,8 @@ class HomeFragment : Fragment() {
     ) { granted ->
         if (granted) {
             findNavController().navigate(R.id.action_home_to_scanner)
+        } else {
+            showDeniedState()
         }
     }
 
@@ -50,6 +52,7 @@ class HomeFragment : Fragment() {
 
         binding.btnDeny.setOnClickListener {
             binding.permissionOverlay.visibility = View.GONE
+            showDeniedState()
         }
 
         binding.btnAllow.setOnClickListener {
@@ -68,8 +71,23 @@ class HomeFragment : Fragment() {
         ) {
             findNavController().navigate(R.id.action_home_to_scanner)
         } else {
+            showWelcomeState()
             binding.permissionOverlay.visibility = View.VISIBLE
         }
+    }
+
+    private fun showDeniedState() {
+        binding.avaImage.visibility = View.GONE
+        binding.welcomeBubble.visibility = View.GONE
+        binding.avaSadImage.visibility = View.VISIBLE
+        binding.deniedBubble.visibility = View.VISIBLE
+    }
+
+    private fun showWelcomeState() {
+        binding.avaSadImage.visibility = View.GONE
+        binding.deniedBubble.visibility = View.GONE
+        binding.avaImage.visibility = View.VISIBLE
+        binding.welcomeBubble.visibility = View.VISIBLE
     }
 
     private fun showHelpDialog() {
