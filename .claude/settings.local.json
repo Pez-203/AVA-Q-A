@@ -7,7 +7,21 @@
       "Bash(adb devices *)",
       "Bash(mkdir -p \"C:/Proyectos\")",
       "Bash(cp -r \"C:/Users/jerry/OneDrive/Documentos/AVA-Q-A\" \"C:/Proyectos/AVA-Q-A\")",
-      "Bash(rsync -av --exclude='.gradle' --exclude='build' --exclude='.idea' \"C:/Users/jerry/OneDrive/Documentos/AVA-Q-A/\" \"C:/Proyectos/AVA-Q-A/\")"
+      "Bash(rsync -av --exclude='.gradle' --exclude='build' --exclude='.idea' \"C:/Users/jerry/OneDrive/Documentos/AVA-Q-A/\" \"C:/Proyectos/AVA-Q-A/\")",
+      "Bash(cp \"C:/Users/jerry/OneDrive/Documentos/AVA-Q-A/app/src/main/java/com/project/ava/MainActivity.kt\" \"C:/Proyectos/AVA-Q-A/app/src/main/java/com/project/ava/MainActivity.kt\")",
+      "Bash(cp \"C:/Users/jerry/OneDrive/Documentos/AVA-Q-A/app/src/main/java/com/project/ava/HomeFragment.kt\" \"C:/Proyectos/AVA-Q-A/app/src/main/java/com/project/ava/HomeFragment.kt\")",
+      "Bash(cp \"C:/Users/jerry/OneDrive/Documentos/AVA-Q-A/app/src/main/java/com/project/ava/ScannerFragment.kt\" \"C:/Proyectos/AVA-Q-A/app/src/main/java/com/project/ava/ScannerFragment.kt\")",
+      "Bash(cp \"C:/Users/jerry/OneDrive/Documentos/AVA-Q-A/app/src/main/java/com/project/ava/LoadingFragment.kt\" \"C:/Proyectos/AVA-Q-A/app/src/main/java/com/project/ava/LoadingFragment.kt\")",
+      "Bash(cp \"C:/Users/jerry/OneDrive/Documentos/AVA-Q-A/app/src/main/java/com/project/ava/QuestionsFragment.kt\" \"C:/Proyectos/AVA-Q-A/app/src/main/java/com/project/ava/QuestionsFragment.kt\")",
+      "Bash(cp \"C:/Users/jerry/OneDrive/Documentos/AVA-Q-A/app/src/main/res/layout/fragment_home.xml\" \"C:/Proyectos/AVA-Q-A/app/src/main/res/layout/fragment_home.xml\")",
+      "Bash(cp \"C:/Users/jerry/OneDrive/Documentos/AVA-Q-A/app/src/main/res/layout/fragment_scanner.xml\" \"C:/Proyectos/AVA-Q-A/app/src/main/res/layout/fragment_scanner.xml\")",
+      "Bash(cp \"C:/Users/jerry/OneDrive/Documentos/AVA-Q-A/app/src/main/res/layout/fragment_loading.xml\" \"C:/Proyectos/AVA-Q-A/app/src/main/res/layout/fragment_loading.xml\")",
+      "Bash(cp \"C:/Users/jerry/OneDrive/Documentos/AVA-Q-A/app/src/main/res/layout/fragment_questions.xml\" \"C:/Proyectos/AVA-Q-A/app/src/main/res/layout/fragment_questions.xml\")",
+      "Bash(cp \"C:/Users/jerry/OneDrive/Documentos/AVA-Q-A/app/src/main/res/layout/fragment_chat.xml\" \"C:/Proyectos/AVA-Q-A/app/src/main/res/layout/fragment_chat.xml\")",
+      "Bash(mkdir -p \"C:/Proyectos/AVA-Q-A/app/src/main/res/navigation\")",
+      "Bash(cp \"C:/Users/jerry/OneDrive/Documentos/AVA-Q-A/app/src/main/res/navigation/nav_graph.xml\" \"C:/Proyectos/AVA-Q-A/app/src/main/res/navigation/nav_graph.xml\")",
+      "Bash(find \"C:\\\\Users\\\\jerry\\\\OneDrive\\\\Documentos\\\\AVA-Q-A\\\\app\\\\src\\\\main\\\\res\\\\mipmap-\"* -type f)",
+      "Bash(./gradlew assembleDebug)"
     ]
   }
 }

@@ -16,4 +16,7 @@
 
     <color name="chat_bubble_user">#E8F5E9</color>
     <color name="chat_bubble_ava">#FFFFFF</color>
+
+    <color name="dark_card">#1B2B34</color>
+    <color name="overlay_dim">#80000000</color>
 </resources>
