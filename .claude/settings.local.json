@@ -21,7 +21,9 @@
       "Bash(mkdir -p \"C:/Proyectos/AVA-Q-A/app/src/main/res/navigation\")",
       "Bash(cp \"C:/Users/jerry/OneDrive/Documentos/AVA-Q-A/app/src/main/res/navigation/nav_graph.xml\" \"C:/Proyectos/AVA-Q-A/app/src/main/res/navigation/nav_graph.xml\")",
       "Bash(find \"C:\\\\Users\\\\jerry\\\\OneDrive\\\\Documentos\\\\AVA-Q-A\\\\app\\\\src\\\\main\\\\res\\\\mipmap-\"* -type f)",
-      "Bash(./gradlew assembleDebug)"
+      "Bash(./gradlew assembleDebug)",
+      "Read(//c/Users/jerry/Downloads/Pantallas Aplicacion AVA/7/**)",
+      "Read(//c/Users/jerry/Downloads/Pantallas Aplicacion AVA/8/**)"
     ]
   }
 }

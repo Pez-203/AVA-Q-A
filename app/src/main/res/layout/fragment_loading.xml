@@ -6,14 +6,17 @@
     android:layout_height="match_parent"
     android:background="@color/white">
 
-    <LinearLayout
+    <!-- ========== HEADER ========== -->
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/header"
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
         android:background="@color/green_primary"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
         android:paddingHorizontal="16dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="14dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
         <ImageButton
@@ -22,180 +25,326 @@
             android:layout_height="32dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/content_desc_back"
-            android:src="@drawable/ic_arrow_back"
+            android:src="@drawable/ic_exit_app"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:tint="@color/white" />
+
+        <ImageButton
+            android:id="@+id/btnHelp"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/content_desc_help"
+            android:src="@drawable/ic_help_outline"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:tint="@color/white" />
+
+        <ImageView
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:contentDescription="@string/content_desc_chat"
+            android:src="@drawable/ic_chat_bubble_dots"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
             app:tint="@color/white" />
 
         <TextView
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:layout_weight="1"
+            android:layout_marginTop="2dp"
             android:text="@string/app_title"
             android:textColor="@color/white"
-            android:textSize="18sp"
-            android:textStyle="bold" />
-    </LinearLayout>
+            android:textSize="16sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/btnBack" />
 
-    <ImageView
-        android:id="@+id/loadingIcon"
-        android:layout_width="80dp"
-        android:layout_height="80dp"
-        android:layout_marginTop="60dp"
-        android:contentDescription="@string/content_desc_qr"
-        android:src="@drawable/ic_qr_code"
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- ========== LOADING RING + ICON ========== -->
+    <FrameLayout
+        android:id="@+id/loadingRing"
+        android:layout_width="88dp"
+        android:layout_height="88dp"
+        android:layout_marginTop="28dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/header" />
+        app:layout_constraintTop_toBottomOf="@id/header">
 
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_loading_ring" />
+
+        <ImageView
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_gravity="center"
+            android:contentDescription="@string/content_desc_qr"
+            android:src="@drawable/ic_qr_code"
+            app:tint="@color/green_primary" />
+    </FrameLayout>
+
+    <!-- ========== LOADING TITLE ========== -->
     <TextView
         android:id="@+id/loadingTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="14dp"
         android:text="@string/loading_title"
         android:textColor="@color/green_primary"
         android:textSize="18sp"
         android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/loadingIcon" />
+        app:layout_constraintTop_toBottomOf="@id/loadingRing" />
 
+    <!-- ========== STEPS ========== -->
     <LinearLayout
         android:id="@+id/stepsContainer"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
+        android:layout_marginTop="24dp"
         android:gravity="center"
         android:orientation="horizontal"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/loadingTitle">
 
+        <!-- Step 1 -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:gravity="center"
             android:orientation="vertical">
 
-            <View
-                android:id="@+id/step1Circle"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="@drawable/bg_step_circle_pending" />
+            <FrameLayout
+                android:id="@+id/step1Container"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@drawable/bg_step_circle_pending">
+
+                <ImageView
+                    android:id="@+id/step1Icon"
+                    android:layout_width="26dp"
+                    android:layout_height="26dp"
+                    android:layout_gravity="center"
+                    android:contentDescription="@string/step_scanned"
+                    android:src="@drawable/ic_qr_code"
+                    app:tint="@color/gray_text" />
+            </FrameLayout>
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="1. Escaneado"
+                android:text="@string/step_scanned"
+                android:textColor="@color/gray_text"
                 android:textSize="11sp" />
+
+            <ImageView
+                android:id="@+id/step1Check"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginTop="4dp"
+                android:contentDescription="@string/step_scanned"
+                android:src="@drawable/ic_circle_small" />
         </LinearLayout>
 
+        <!-- Line 1 -->
         <View
             android:id="@+id/line1"
             android:layout_width="40dp"
             android:layout_height="2dp"
             android:layout_gravity="center_vertical"
-            android:layout_marginHorizontal="4dp"
-            android:background="@color/gray_light" />
+            android:layout_marginBottom="36dp"
+            android:layout_marginHorizontal="6dp"
+            android:background="@drawable/bg_step_line" />
 
+        <!-- Step 2 -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:gravity="center"
             android:orientation="vertical">
 
-            <View
-                android:id="@+id/step2Circle"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="@drawable/bg_step_circle_pending" />
+            <FrameLayout
+                android:id="@+id/step2Container"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@drawable/bg_step_circle_pending">
+
+                <ImageView
+                    android:id="@+id/step2Icon"
+                    android:layout_width="26dp"
+                    android:layout_height="26dp"
+                    android:layout_gravity="center"
+                    android:contentDescription="@string/step_validated"
+                    android:src="@drawable/ic_shield_check"
+                    app:tint="@color/gray_text" />
+            </FrameLayout>
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="2. Validado"
+                android:text="@string/step_validated"
+                android:textColor="@color/gray_text"
                 android:textSize="11sp" />
+
+            <ImageView
+                android:id="@+id/step2Check"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginTop="4dp"
+                android:contentDescription="@string/step_validated"
+                android:src="@drawable/ic_circle_small" />
         </LinearLayout>
 
+        <!-- Line 2 -->
         <View
             android:id="@+id/line2"
             android:layout_width="40dp"
             android:layout_height="2dp"
             android:layout_gravity="center_vertical"
-            android:layout_marginHorizontal="4dp"
-            android:background="@color/gray_light" />
+            android:layout_marginBottom="36dp"
+            android:layout_marginHorizontal="6dp"
+            android:background="@drawable/bg_step_line" />
 
+        <!-- Step 3 -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:gravity="center"
             android:orientation="vertical">
 
-            <View
-                android:id="@+id/step3Circle"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="@drawable/bg_step_circle_pending" />
+            <FrameLayout
+                android:id="@+id/step3Container"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@drawable/bg_step_circle_pending">
+
+                <ImageView
+                    android:id="@+id/step3Icon"
+                    android:layout_width="26dp"
+                    android:layout_height="26dp"
+                    android:layout_gravity="center"
+                    android:contentDescription="@string/step_loading"
+                    android:src="@drawable/ic_person"
+                    app:tint="@color/gray_text" />
+            </FrameLayout>
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="3. Cargando"
+                android:text="@string/step_loading"
+                android:textColor="@color/gray_text"
                 android:textSize="11sp" />
-        </LinearLayout>
-    </LinearLayout>
-
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/funFactCard"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="24dp"
-        android:layout_marginBottom="32dp"
-        app:cardBackgroundColor="@color/green_surface"
-        app:cardCornerRadius="12dp"
-        app:cardElevation="2dp"
-        app:layout_constraintBottom_toBottomOf="parent">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:padding="16dp">
 
             <ImageView
-                android:layout_width="70dp"
-                android:layout_height="70dp"
-                android:contentDescription="@string/content_desc_ava"
-                android:src="@drawable/ava_loading" />
+                android:id="@+id/step3Check"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginTop="4dp"
+                android:contentDescription="@string/step_loading"
+                android:src="@drawable/ic_circle_small" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- ========== DIVIDER ========== -->
+    <View
+        android:id="@+id/divider"
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:layout_marginHorizontal="24dp"
+        android:layout_marginTop="20dp"
+        android:background="@color/gray_light"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/stepsContainer" />
+
+    <!-- ========== BOTTOM SECTION: CARD + AVA ========== -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/bottomSection"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="12dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <!-- AVA image anchored right -->
+        <ImageView
+            android:id="@+id/avaLoadingImage"
+            android:layout_width="140dp"
+            android:layout_height="175dp"
+            android:contentDescription="@string/content_desc_ava"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ava_success"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- Info card anchored left, vertically matching AVA -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/funFactCard"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_marginEnd="8dp"
+            app:cardBackgroundColor="@color/green_surface"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="2dp"
+            app:layout_constraintBottom_toBottomOf="@id/avaLoadingImage"
+            app:layout_constraintEnd_toStartOf="@id/avaLoadingImage"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="@id/avaLoadingImage">
 
             <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:layout_weight="1"
-                android:orientation="vertical">
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="14dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:text="@string/did_you_know"
-                    android:textColor="@color/green_primary"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
+                    android:layout_weight="1"
+                    android:orientation="vertical">
 
-                <TextView
-                    android:id="@+id/funFactText"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:textColor="@color/gray_text"
-                    android:textSize="13sp" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/did_you_know"
+                        android:textColor="@color/green_primary"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/funFactText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:textColor="@color/gray_text"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <ImageView
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:layout_marginStart="8dp"
+                    android:contentDescription="@string/did_you_know"
+                    android:src="@drawable/ic_lightbulb" />
             </LinearLayout>
-        </LinearLayout>
-    </com.google.android.material.card.MaterialCardView>
+        </com.google.android.material.card.MaterialCardView>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

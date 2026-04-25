@@ -14,7 +14,7 @@
     <color name="gray_text">#555555</color>
     <color name="gray_light">#E0E0E0</color>
 
-    <color name="chat_bubble_user">#E8F5E9</color>
+    <color name="chat_bubble_user">#1B5E20</color>
     <color name="chat_bubble_ava">#FFFFFF</color>
 
     <color name="dark_card">#1B2B34</color>

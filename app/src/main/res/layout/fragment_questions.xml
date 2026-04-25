@@ -4,16 +4,19 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/green_primary">
+    android:background="@color/white">
 
-    <LinearLayout
+    <!-- ========== HEADER ========== -->
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/header"
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:background="@color/green_dark"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="@color/green_primary"
         android:paddingHorizontal="16dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="14dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
         <ImageButton
@@ -22,81 +25,153 @@
             android:layout_height="32dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/content_desc_back"
-            android:src="@drawable/ic_arrow_back"
+            android:src="@drawable/ic_exit_app"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:tint="@color/white" />
+
+        <ImageButton
+            android:id="@+id/btnHelp"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/content_desc_help"
+            android:src="@drawable/ic_help_outline"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:tint="@color/white" />
+
+        <ImageView
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:contentDescription="@string/content_desc_chat"
+            android:src="@drawable/ic_chat_bubble_dots"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
             app:tint="@color/white" />
 
         <TextView
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:layout_weight="1"
+            android:layout_marginTop="2dp"
             android:text="@string/app_title"
             android:textColor="@color/white"
-            android:textSize="18sp"
-            android:textStyle="bold" />
-    </LinearLayout>
+            android:textSize="16sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/btnBack" />
 
-    <FrameLayout
-        android:id="@+id/avaFrame"
-        android:layout_width="180dp"
-        android:layout_height="180dp"
-        android:layout_marginTop="16dp"
-        android:background="@drawable/bg_ava_frame"
-        android:padding="8dp"
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- ========== DARK CARD WITH AVA ========== -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/avaCard"
+        android:layout_width="0dp"
+        android:layout_height="170dp"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_dark_card"
+        android:padding="12dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/header">
 
-        <ImageView
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:contentDescription="@string/content_desc_ava"
-            android:scaleType="centerInside"
-            android:src="@drawable/ava_explaining" />
-    </FrameLayout>
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/guidelineAva"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            app:layout_constraintGuide_percent="0.45" />
 
+        <ImageView
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:contentDescription="@string/content_desc_ava"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ava_explaining3"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/guidelineAva"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_welcome_bubble"
+            android:orientation="vertical"
+            android:padding="12dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="@id/guidelineAva"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/ava_ready_to_help"
+                android:textColor="@color/green_primary"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- ========== FAQ TITLE ========== -->
     <TextView
-        android:id="@+id/categoryTitle"
-        android:layout_width="wrap_content"
+        android:id="@+id/faqTitle"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="14dp"
         android:text="@string/faq_title"
-        android:textColor="@color/white"
-        android:textSize="20sp"
+        android:textColor="@color/green_primary"
+        android:textSize="17sp"
         android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/avaFrame" />
+        app:layout_constraintTop_toBottomOf="@id/avaCard" />
 
+    <!-- ========== QUESTIONS SCROLL ========== -->
     <ScrollView
         android:id="@+id/questionsScroll"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginTop="12dp"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="10dp"
         android:layout_marginBottom="8dp"
         android:clipToPadding="false"
-        android:paddingHorizontal="24dp"
         app:layout_constraintBottom_toTopOf="@id/btnOtherQuestions"
-        app:layout_constraintTop_toBottomOf="@id/categoryTitle">
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/faqTitle">
 
         <LinearLayout
             android:id="@+id/questionsContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical" />
+            android:orientation="vertical"
+            android:paddingBottom="8dp" />
     </ScrollView>
 
+    <!-- ========== OTRAS PREGUNTAS BUTTON ========== -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnOtherQuestions"
-        style="@style/Widget.Material3.Button.OutlinedButton"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:layout_marginHorizontal="24dp"
+        android:layout_width="0dp"
+        android:layout_height="50dp"
+        android:layout_marginHorizontal="16dp"
         android:layout_marginBottom="16dp"
         android:text="@string/btn_other_questions"
-        android:textColor="@color/white"
-        app:cornerRadius="8dp"
-        app:strokeColor="@color/white"
-        app:layout_constraintBottom_toBottomOf="parent" />
+        app:backgroundTint="@color/green_surface"
+        app:cornerRadius="10dp"
+        app:icon="@drawable/ic_chat_bubble_dots"
+        app:iconGravity="textStart"
+        app:iconTint="@color/green_primary"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        android:textColor="@color/green_primary" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

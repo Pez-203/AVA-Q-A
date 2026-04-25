@@ -59,6 +59,9 @@
         <argument
             android:name="answerText"
             app:argType="string" />
+        <argument
+            android:name="categoryId"
+            app:argType="long" />
     </fragment>
 
 </navigation>

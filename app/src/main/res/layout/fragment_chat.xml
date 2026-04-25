@@ -6,14 +6,17 @@
     android:layout_height="match_parent"
     android:background="@color/white">
 
-    <LinearLayout
+    <!-- ========== HEADER ========== -->
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/header"
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
         android:background="@color/green_primary"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
         android:paddingHorizontal="16dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="14dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
         <ImageButton
@@ -22,50 +25,79 @@
             android:layout_height="32dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/content_desc_back"
-            android:src="@drawable/ic_arrow_back"
+            android:src="@drawable/ic_exit_app"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:tint="@color/white" />
+
+        <ImageButton
+            android:id="@+id/btnHelp"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/content_desc_help"
+            android:src="@drawable/ic_help_outline"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:tint="@color/white" />
+
+        <ImageView
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:contentDescription="@string/content_desc_chat"
+            android:src="@drawable/ic_chat_bubble_dots"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
             app:tint="@color/white" />
 
         <TextView
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:layout_weight="1"
+            android:layout_marginTop="2dp"
             android:text="@string/app_title"
             android:textColor="@color/white"
-            android:textSize="18sp"
-            android:textStyle="bold" />
-    </LinearLayout>
+            android:textSize="16sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/btnBack" />
 
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- ========== DARK CARD WITH AVA (compact) ========== -->
     <FrameLayout
-        android:id="@+id/avaPreview"
-        android:layout_width="match_parent"
-        android:layout_height="200dp"
-        android:background="@color/green_primary"
+        android:id="@+id/avaCard"
+        android:layout_width="0dp"
+        android:layout_height="130dp"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_dark_card"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/header">
 
         <ImageView
-            android:layout_width="150dp"
-            android:layout_height="match_parent"
-            android:layout_gravity="center"
-            android:contentDescription="@string/content_desc_ava"
-            android:scaleType="centerInside"
-            android:src="@drawable/ava_explaining" />
-
-        <View
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_margin="12dp"
-            android:background="@drawable/bg_ava_frame" />
+            android:contentDescription="@string/content_desc_ava"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ava_explaining" />
     </FrameLayout>
 
+    <!-- ========== CHAT SCROLL ========== -->
     <ScrollView
         android:id="@+id/chatScroll"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="0dp"
         android:clipToPadding="false"
-        android:padding="16dp"
-        app:layout_constraintBottom_toTopOf="@id/btnQuestions"
-        app:layout_constraintTop_toBottomOf="@id/avaPreview">
+        android:paddingHorizontal="16dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="6dp"
+        app:layout_constraintBottom_toTopOf="@id/panelContainer"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/avaCard">
 
         <LinearLayout
             android:id="@+id/chatContainer"
@@ -74,15 +106,72 @@
             android:orientation="vertical" />
     </ScrollView>
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btnQuestions"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:layout_marginHorizontal="24dp"
-        android:layout_marginBottom="16dp"
-        android:text="@string/btn_questions"
-        app:backgroundTint="@color/green_primary"
-        app:cornerRadius="8dp"
-        app:layout_constraintBottom_toBottomOf="parent" />
+    <!-- ========== QUESTIONS PANEL (bottom) ========== -->
+    <LinearLayout
+        android:id="@+id/panelContainer"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="@color/white"
+        android:elevation="6dp"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <!-- Toggle bar -->
+        <LinearLayout
+            android:id="@+id/panelToggle"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:background="@color/green_surface"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="20dp">
+
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:contentDescription="@string/btn_questions"
+                android:src="@drawable/ic_chat_bubble_dots"
+                app:tint="@color/green_primary" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_weight="1"
+                android:text="@string/btn_questions"
+                android:textColor="@color/green_primary"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <ImageView
+                android:id="@+id/panelChevron"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:contentDescription="@string/btn_questions"
+                android:src="@drawable/ic_chevron_up"
+                app:tint="@color/green_primary" />
+        </LinearLayout>
+
+        <!-- Questions list (GONE by default) -->
+        <ScrollView
+            android:id="@+id/panelQuestionsScroll"
+            android:layout_width="match_parent"
+            android:layout_height="220dp"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:id="@+id/panelQuestionsContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="12dp" />
+        </ScrollView>
+
+    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

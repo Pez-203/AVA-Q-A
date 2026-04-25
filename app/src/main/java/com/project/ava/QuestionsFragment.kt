@@ -5,6 +5,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
@@ -22,6 +23,7 @@ class QuestionsFragment : Fragment() {
     private var _binding: FragmentQuestionsBinding? = null
     private val binding get() = _binding!!
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private var categoryId: Long = -1L
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -34,13 +36,14 @@ class QuestionsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val categoryId = arguments?.getLong("categoryId") ?: return
-        val categoryTitle = arguments?.getString("categoryTitle") ?: ""
-
-        binding.categoryTitle.text = categoryTitle
+        categoryId = arguments?.getLong("categoryId") ?: return
 
         binding.btnBack.setOnClickListener {
             findNavController().popBackStack(R.id.homeFragment, false)
+        }
+
+        binding.btnHelp.setOnClickListener {
+            showHelpDialog()
         }
 
         binding.btnOtherQuestions.setOnClickListener {
@@ -65,20 +68,28 @@ class QuestionsFragment : Fragment() {
         container.removeAllViews()
 
         for (question in questions) {
-            val itemView = layoutInflater.inflate(R.layout.item_question_button, container, false)
-            val textView = itemView.findViewById<TextView>(R.id.questionText)
-            textView.text = question.questionText
+            val itemView = layoutInflater.inflate(R.layout.item_question_row, container, false)
+            itemView.findViewById<TextView>(R.id.questionText).text = question.questionText
 
             itemView.setOnClickListener {
                 val bundle = bundleOf(
                     "questionText" to question.questionText,
-                    "answerText" to question.answerText
+                    "answerText" to question.answerText,
+                    "categoryId" to categoryId
                 )
                 findNavController().navigate(R.id.action_questions_to_chat, bundle)
             }
 
             container.addView(itemView)
         }
+    }
+
+    private fun showHelpDialog() {
+        AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.help_title))
+            .setMessage(getString(R.string.help_message))
+            .setPositiveButton(getString(R.string.btn_accept), null)
+            .show()
     }
 
     override fun onDestroyView() {
