@@ -2,14 +2,8 @@ package com.project.ava
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.graphics.BitmapFactory
 import android.os.Bundle
-import android.util.TypedValue
 import android.view.View
-import android.widget.FrameLayout
-import android.widget.ImageView
-import android.widget.LinearLayout
-import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -19,6 +13,7 @@ import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
@@ -28,13 +23,18 @@ import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import com.project.ava.data.AppDatabase
 import com.project.ava.data.Question
+import com.project.ava.data.QuestionRepository
 import com.project.ava.databinding.ActivityMainBinding
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import com.project.ava.data.CategoryWithQuestions
+import kotlinx.coroutines.delay
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -42,17 +42,20 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var database: AppDatabase
+    private lateinit var repository: QuestionRepository
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     @Volatile
     private var isProcessing = false
-    private var bottomSheetDialog: BottomSheetDialog? = null
+
+    private var composeScreenState by mutableStateOf<String?>(null) // null, "loading", "chat"
+    private var currentData: CategoryWithQuestions? = null
 
     private val cameraPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (granted) {
-            startCamera()
+            startScanning()
         } else {
             Toast.makeText(this, "Se necesita permiso de cámara", Toast.LENGTH_LONG).show()
         }
@@ -64,24 +67,75 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         database = AppDatabase.getInstance(this)
+        repository = QuestionRepository(database)
         cameraExecutor = Executors.newSingleThreadExecutor()
 
+        binding.composeView.setContent {
+            val screen = composeScreenState
+            val data = currentData
+
+            when (screen) {
+                "loading" -> {
+                    LoadingScreen(
+                        onBack = { resetToInitial() },
+                        onHelp = {
+                            Toast.makeText(this@MainActivity, "Cargando recursos...", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                }
+                "chat" -> {
+                    if (data != null) {
+                        ChatScreen(
+                            categoryTitle = data.category.title,
+                            questions = data.questions,
+                            onBack = { resetToInitial() },
+                            onHelp = {
+                                Toast.makeText(this@MainActivity, "Ayuda activa.", Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        binding.composeView.visibility = View.GONE
+        binding.initialUi.visibility = View.VISIBLE
+
+        binding.btnMenu.setOnClickListener {
+            finishAffinity()
+        }
+
+        binding.btnScan.setOnClickListener {
+            checkCameraPermission()
+        }
+    }
+
+    private fun checkCameraPermission() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
             == PackageManager.PERMISSION_GRANTED
         ) {
-            startCamera()
+            startScanning()
         } else {
             cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
     }
 
-    private fun startCamera() {
+    private fun startScanning() {
+        // binding.initialUi.visibility = View.GONE // Mantener visible el resto de la UI
+        binding.cameraPreview.visibility = View.VISIBLE
+        binding.scanInstructionArea.visibility = View.VISIBLE
+        binding.scanInstruction.visibility = View.VISIBLE
+        showAvaOverlay()
+        startCamera(binding.cameraPreview)
+    }
+
+    private fun startCamera(previewView: PreviewView) {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
         cameraProviderFuture.addListener({
             val cameraProvider = cameraProviderFuture.get()
 
             val preview = Preview.Builder().build().also {
-                it.surfaceProvider = binding.cameraPreview.surfaceProvider
+                it.surfaceProvider = previewView.surfaceProvider
             }
 
             val options = BarcodeScannerOptions.Builder()
@@ -102,6 +156,13 @@ class MainActivity : AppCompatActivity() {
             cameraProvider.bindToLifecycle(
                 this, CameraSelector.DEFAULT_BACK_CAMERA, preview, imageAnalysis
             )
+        }, ContextCompat.getMainExecutor(this))
+    }
+
+    private fun stopCamera() {
+        val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
+        cameraProviderFuture.addListener({
+            cameraProviderFuture.get().unbindAll()
         }, ContextCompat.getMainExecutor(this))
     }
 
@@ -139,19 +200,52 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleQrCode(qrCode: String) {
-        scope.launch {
-            val result = withContext(Dispatchers.IO) {
-                database.categoryDao().getWithQuestionsByQrCode(qrCode)
-            }
+        // FeedBack inmediato
+        runOnUiThread {
+            Toast.makeText(this, "Lectura: $qrCode", Toast.LENGTH_SHORT).show()
+        }
 
-            if (result != null) {
-                showAvaOverlay()
-                showBottomSheet(result.category.title, result.questions)
-            } else {
-                Toast.makeText(this@MainActivity, "Código no registrado", Toast.LENGTH_SHORT).show()
-                isProcessing = false
+        scope.launch(Dispatchers.Main) {
+            try {
+                stopCamera()
+                
+                // Mostrar pantalla de carga
+                binding.cameraPreview.visibility = View.INVISIBLE
+                binding.scanInstructionArea.visibility = View.GONE
+                binding.scanInstruction.visibility = View.GONE
+                hideAvaOverlay()
+                
+                binding.composeView.visibility = View.VISIBLE
+                composeScreenState = "loading"
+                
+                // Cargar datos
+                val result = repository.getCategoryWithQuestions(qrCode)
+                
+                // Retraso artificial para que se vea la pantalla de carga (según requerimiento)
+                delay(2000)
+                
+                if (result != null) {
+                    currentData = result
+                    composeScreenState = "chat"
+                } else {
+                    Toast.makeText(this@MainActivity, "Código QR no reconocido: $qrCode", Toast.LENGTH_LONG).show()
+                    resetToInitial()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                resetToInitial()
             }
         }
+    }
+
+    private fun resetToInitial() {
+        composeScreenState = null
+        currentData = null
+        binding.composeView.visibility = View.GONE
+        binding.cameraPreview.visibility = View.INVISIBLE
+        binding.scanInstructionArea.visibility = View.GONE
+        binding.initialUi.visibility = View.VISIBLE
+        isProcessing = false
     }
 
     private fun showAvaOverlay() {
@@ -175,71 +269,20 @@ class MainActivity : AppCompatActivity() {
             .start()
     }
 
-    private fun dpToPx(dp: Int): Float {
-        return TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_DIP, dp.toFloat(), resources.displayMetrics
-        )
-    }
-
-    private fun showBottomSheet(title: String, questions: List<Question>) {
-        val dialog = BottomSheetDialog(this)
-        val view = layoutInflater.inflate(R.layout.bottom_sheet_questions, null)
-
-        view.findViewById<TextView>(R.id.categoryTitle).text = title
-
-        val container = view.findViewById<LinearLayout>(R.id.questionsContainer)
-        for (question in questions) {
-            val questionView =
-                layoutInflater.inflate(R.layout.item_question_answer, container, false)
-            val questionText = questionView.findViewById<TextView>(R.id.questionText)
-            val answerContainer = questionView.findViewById<LinearLayout>(R.id.answerContainer)
-            val answerText = questionView.findViewById<TextView>(R.id.answerText)
-            val imageContainer = questionView.findViewById<FrameLayout>(R.id.imageContainer)
-            val answerImage = questionView.findViewById<ImageView>(R.id.answerImage)
-
-            questionText.text = question.questionText
-            answerText.text = question.answerText
-
-            if (question.imageName != null) {
-                try {
-                    val stream = assets.open("qr/${question.imageName}")
-                    val bitmap = BitmapFactory.decodeStream(stream)
-                    stream.close()
-                    if (bitmap != null) {
-                        answerImage.setImageBitmap(bitmap)
-                        answerImage.translationX = dpToPx(question.imageOffsetX)
-                        answerImage.translationY = dpToPx(question.imageOffsetY)
-                        imageContainer.visibility = View.VISIBLE
-                    }
-                } catch (_: Exception) {
-                    imageContainer.visibility = View.GONE
-                }
-            }
-
-            questionView.setOnClickListener {
-                if (answerContainer.visibility == View.GONE) {
-                    answerContainer.visibility = View.VISIBLE
-                } else {
-                    answerContainer.visibility = View.GONE
-                }
-            }
-
-            container.addView(questionView)
-        }
-
-        view.findViewById<MaterialButton>(R.id.btnClose).setOnClickListener {
-            dialog.dismiss()
-        }
-
-        dialog.setOnDismissListener {
+    override fun onBackPressed() {
+        if (composeScreenState != null) {
+            resetToInitial()
+        } else if (binding.cameraPreview.visibility == View.VISIBLE) {
+            stopCamera()
+            binding.cameraPreview.visibility = View.INVISIBLE
+            binding.scanInstructionArea.visibility = View.GONE
+            binding.scanInstruction.visibility = View.GONE
             hideAvaOverlay()
+            binding.initialUi.visibility = View.VISIBLE
             isProcessing = false
-            bottomSheetDialog = null
+        } else {
+            super.onBackPressed()
         }
-
-        dialog.setContentView(view)
-        dialog.show()
-        bottomSheetDialog = dialog
     }
 
     override fun onDestroy() {

@@ -13,7 +13,13 @@ interface CategoryDao {
     suspend fun getAll(): List<Category>
 
     @Transaction
-    @Query("SELECT * FROM categories WHERE qrCode = :qrCode LIMIT 1")
+    @Query("""
+        SELECT * FROM categories 
+        WHERE UPPER(qrCode) = UPPER(:qrCode) 
+           OR UPPER(qrCode) = UPPER(:qrCode || '.png') 
+           OR UPPER(:qrCode) = UPPER(qrCode || '.png') 
+        LIMIT 1
+    """)
     suspend fun getWithQuestionsByQrCode(qrCode: String): CategoryWithQuestions?
 
     @Insert

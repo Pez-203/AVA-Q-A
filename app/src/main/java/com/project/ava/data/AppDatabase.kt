@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [Category::class, Question::class], version = 2, exportSchema = false)
+@Database(entities = [Category::class, Question::class], version = 7, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun categoryDao(): CategoryDao
     abstract fun questionDao(): QuestionDao
@@ -24,6 +24,12 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_2_3 = object : Migration(2, 3) { override fun migrate(db: SupportSQLiteDatabase) {} }
+        private val MIGRATION_3_4 = object : Migration(3, 4) { override fun migrate(db: SupportSQLiteDatabase) {} }
+        private val MIGRATION_4_5 = object : Migration(4, 5) { override fun migrate(db: SupportSQLiteDatabase) {} }
+        private val MIGRATION_5_6 = object : Migration(5, 6) { override fun migrate(db: SupportSQLiteDatabase) {} }
+        private val MIGRATION_6_7 = object : Migration(6, 7) { override fun migrate(db: SupportSQLiteDatabase) {} }
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -31,7 +37,8 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "ava_database"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .fallbackToDestructiveMigration()
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                     .addCallback(SeedCallback())
                     .build()
                 INSTANCE = instance
@@ -51,8 +58,10 @@ abstract class AppDatabase : RoomDatabase() {
         override fun onCreate(db: SupportSQLiteDatabase) {
             super.onCreate(db)
 
-            db.execSQL("INSERT INTO categories (title, qrCode) VALUES ('Reinscripción', 'ESCOLAR_REINSCRIPCION')")
-            db.execSQL("INSERT INTO categories (title, qrCode) VALUES ('Titulación', 'ESCOLAR_TITULACION')")
+            // Usamos identificadores que cubran tanto el nombre corto como el nombre del archivo QR
+            db.execSQL("INSERT INTO categories (title, qrCode) VALUES ('Reinscripción', 'ESCOLAR_REINSCRIPCION.png')")
+            db.execSQL("INSERT INTO categories (title, qrCode) VALUES ('Titulación', 'ESCOLAR_TITULACION.png')")
+            db.execSQL("INSERT INTO categories (title, qrCode) VALUES ('Práctica de Laboratorio', 'PRACTICA_LAB_01.png')")
 
             // ── REINSCRIPCIÓN (categoryId = 1) ──
 
@@ -141,6 +150,20 @@ abstract class AppDatabase : RoomDatabase() {
             insertQ(db, 2,
                 "¿Cómo contacto a la coordinación de titulación?",
                 "• Correo: titulacion.fime@uanl.mx\n• MS Teams: Equipo \"Titulación-FIME\"\n• Egresados (CV y kárdex): egresados.fime@uanl.mx")
+
+            // ── PRÁCTICA DE LABORATORIO (categoryId = 3) ──
+
+            insertQ(db, 3,
+                "¿Cómo funciona la práctica?",
+                "La práctica funciona siguiendo los pasos indicados en el manual de laboratorio, asegurando el correcto uso del equipo y el registro de datos.")
+
+            insertQ(db, 3,
+                "¿Dónde encuentro los materiales?",
+                "Los materiales se encuentran en el locker asignado a esta estación de trabajo. Favor de dejarlos ordenados al terminar.")
+
+            insertQ(db, 3,
+                "¿Cuál es el objetivo de esta estación?",
+                "El objetivo es identificar los componentes principales del sistema y validar su funcionamiento mediante pruebas de continuidad.")
         }
     }
 }
