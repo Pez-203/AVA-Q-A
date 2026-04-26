@@ -10,11 +10,9 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/header"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
+        android:layout_height="120dp"
         android:background="@color/green_primary"
-        android:paddingHorizontal="4dp"
-        android:paddingTop="8dp"
-        android:paddingBottom="14dp"
+        android:padding="16dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
@@ -23,7 +21,7 @@
             android:id="@+id/btnBack"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:padding="10dp"
+            android:padding="8dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/content_desc_back"
             android:src="@drawable/ic_exit_app"
@@ -35,7 +33,7 @@
             android:id="@+id/btnHelp"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:padding="10dp"
+            android:padding="8dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/content_desc_help"
             android:src="@drawable/ic_help_outline"
@@ -43,60 +41,53 @@
             app:layout_constraintTop_toTopOf="parent"
             app:tint="@color/white" />
 
-        <ImageView
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:contentDescription="@string/content_desc_chat"
-            android:src="@drawable/ic_chat_bubble_dots"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:tint="@color/white" />
-
-        <TextView
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:text="@string/app_title"
-            android:textColor="@color/white"
-            android:textSize="16sp"
-            android:textStyle="bold"
+            android:gravity="center"
+            android:orientation="vertical"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/btnBack" />
+            app:layout_constraintTop_toTopOf="parent">
+
+            <ImageView
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:contentDescription="@string/content_desc_chat"
+                android:src="@drawable/ic_chat_bubble_dots"
+                app:tint="@color/white" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/app_title"
+                android:textColor="@color/white"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+        </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- ========== CAMERA AR CARD WITH AVA (compact) ========== -->
+    <!-- ========== AVA DARK CARD ========== -->
     <FrameLayout
         android:id="@+id/avaCard"
         android:layout_width="0dp"
-        android:layout_height="160dp"
-        android:layout_marginHorizontal="20dp"
-        android:layout_marginTop="10dp"
+        android:layout_height="200dp"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="16dp"
         android:background="@drawable/bg_dark_card"
-        android:clipChildren="false"
-        android:clipToPadding="false"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/header">
 
-        <androidx.camera.view.PreviewView
-            android:id="@+id/cameraPreview"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent" />
-
-        <!-- AVA floating over camera (AR effect) -->
         <ImageView
-            android:id="@+id/avaFloating"
-            android:layout_width="140dp"
+            android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_gravity="start|bottom"
-            android:layout_marginStart="8dp"
             android:contentDescription="@string/content_desc_ava"
-            android:scaleType="fitEnd"
+            android:scaleType="fitCenter"
             android:src="@drawable/ava_explaining" />
-
     </FrameLayout>
 
     <!-- ========== CHAT SCROLL ========== -->
@@ -105,8 +96,8 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:clipToPadding="false"
-        android:paddingHorizontal="20dp"
-        android:paddingTop="10dp"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="16dp"
         android:paddingBottom="6dp"
         app:layout_constraintBottom_toTopOf="@id/panelContainer"
         app:layout_constraintEnd_toEndOf="parent"
@@ -136,39 +127,39 @@
         <LinearLayout
             android:id="@+id/panelToggle"
             android:layout_width="match_parent"
-            android:layout_height="50dp"
-            android:background="@color/green_surface"
+            android:layout_height="56dp"
+            android:background="@color/green_border"
             android:clickable="true"
             android:focusable="true"
             android:foreground="?attr/selectableItemBackground"
-            android:gravity="center_vertical"
+            android:gravity="center"
             android:orientation="horizontal"
             android:paddingHorizontal="20dp">
 
             <ImageView
-                android:layout_width="22dp"
-                android:layout_height="22dp"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
                 android:contentDescription="@string/btn_questions"
                 android:src="@drawable/ic_chat_bubble_dots"
-                app:tint="@color/green_primary" />
+                app:tint="@color/black" />
 
             <TextView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="10dp"
+                android:layout_marginStart="8dp"
                 android:layout_weight="1"
                 android:text="@string/btn_questions"
-                android:textColor="@color/green_primary"
-                android:textSize="15sp"
+                android:textColor="@color/black"
+                android:textSize="18sp"
                 android:textStyle="bold" />
 
             <ImageView
                 android:id="@+id/panelChevron"
-                android:layout_width="22dp"
-                android:layout_height="22dp"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
                 android:contentDescription="@string/btn_questions"
                 android:src="@drawable/ic_chevron_up"
-                app:tint="@color/green_primary" />
+                app:tint="@color/black" />
         </LinearLayout>
 
         <!-- Questions list (GONE by default) -->

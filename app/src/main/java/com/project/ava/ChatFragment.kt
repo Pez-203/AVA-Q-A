@@ -11,9 +11,6 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.Preview
-import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
@@ -62,27 +59,8 @@ class ChatFragment : Fragment() {
             togglePanel()
         }
 
-        binding.avaCard.clipToOutline = true
-        startCamera()
         loadQuestionsForPanel(categoryId)
         showInitialConversation(questionText, answerText)
-    }
-
-    private fun startCamera() {
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(requireContext())
-        cameraProviderFuture.addListener({
-            if (!isAdded) return@addListener
-            val cameraProvider = cameraProviderFuture.get()
-
-            val preview = Preview.Builder().build().also {
-                it.surfaceProvider = binding.cameraPreview.surfaceProvider
-            }
-
-            cameraProvider.unbindAll()
-            cameraProvider.bindToLifecycle(
-                viewLifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview
-            )
-        }, ContextCompat.getMainExecutor(requireContext()))
     }
 
     private fun showInitialConversation(question: String, answer: String) {
@@ -171,7 +149,7 @@ class ChatFragment : Fragment() {
     private fun addBubble(text: String, isUser: Boolean) {
         val bubble = TextView(requireContext()).apply {
             this.text = text
-            textSize = 14f
+            textSize = 16f
             setPadding(32, 20, 32, 20)
             maxWidth = (resources.displayMetrics.widthPixels * 0.75).toInt()
 
@@ -180,7 +158,7 @@ class ChatFragment : Fragment() {
                 setTextColor(ContextCompat.getColor(requireContext(), R.color.white))
             } else {
                 setBackgroundResource(R.drawable.bg_bubble_ava)
-                setTextColor(ContextCompat.getColor(requireContext(), R.color.gray_text))
+                setTextColor(ContextCompat.getColor(requireContext(), R.color.green_primary))
             }
         }
 

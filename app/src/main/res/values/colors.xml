@@ -3,20 +3,24 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 
-    <color name="green_primary">#1B5E20</color>
-    <color name="green_dark">#0D3B0E</color>
+    <color name="green_primary">#2E7D32</color>
+    <color name="green_dark">#1B5E20</color>
     <color name="green_light">#4CAF50</color>
     <color name="green_surface">#E8F5E9</color>
+    <color name="green_surface_light">#F1F8E9</color>
+    <color name="green_border">#C8E6C9</color>
 
     <color name="yellow_accent">#FFC107</color>
     <color name="yellow_light">#FFF8E1</color>
 
     <color name="gray_text">#555555</color>
+    <color name="gray_secondary">#757575</color>
     <color name="gray_light">#E0E0E0</color>
+    <color name="gray_bg">#F5F5F5</color>
 
-    <color name="chat_bubble_user">#1B5E20</color>
-    <color name="chat_bubble_ava">#FFFFFF</color>
+    <color name="chat_bubble_user">#81C784</color>
+    <color name="chat_bubble_ava">#E8F5E9</color>
 
-    <color name="dark_card">#1B2B34</color>
+    <color name="dark_card">#1E2A38</color>
     <color name="overlay_dim">#80000000</color>
 </resources>
