@@ -12,7 +12,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:background="@color/green_primary"
-        android:paddingHorizontal="16dp"
+        android:paddingHorizontal="4dp"
         android:paddingTop="8dp"
         android:paddingBottom="14dp"
         app:layout_constraintEnd_toEndOf="parent"
@@ -21,8 +21,9 @@
 
         <ImageButton
             android:id="@+id/btnBack"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:padding="10dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/content_desc_exit"
             android:src="@drawable/ic_exit_app"
@@ -32,8 +33,9 @@
 
         <ImageButton
             android:id="@+id/btnHelp"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:padding="10dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/content_desc_help"
             android:src="@drawable/ic_help_outline"

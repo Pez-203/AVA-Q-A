@@ -23,7 +23,12 @@
       "Bash(find \"C:\\\\Users\\\\jerry\\\\OneDrive\\\\Documentos\\\\AVA-Q-A\\\\app\\\\src\\\\main\\\\res\\\\mipmap-\"* -type f)",
       "Bash(./gradlew assembleDebug)",
       "Read(//c/Users/jerry/Downloads/Pantallas Aplicacion AVA/7/**)",
-      "Read(//c/Users/jerry/Downloads/Pantallas Aplicacion AVA/8/**)"
+      "Read(//c/Users/jerry/Downloads/Pantallas Aplicacion AVA/8/**)",
+      "Bash(cp \"C:/Users/jerry/Downloads/Ava rika/ava_welcome-removebg-preview.png\" \"C:/Users/jerry/OneDrive/Documentos/AVA-Q-A/app/src/main/res/drawable/ava_welcome.png\")",
+      "Bash(cp \"C:/Users/jerry/Downloads/Ava rika/ava_explaining1-removebg-preview.png\" \"C:/Users/jerry/OneDrive/Documentos/AVA-Q-A/app/src/main/res/drawable/ava_explaining.png\")",
+      "Bash(cp \"C:/Users/jerry/Downloads/Ava rika/ava_loading-removebg-preview.png\" \"C:/Users/jerry/OneDrive/Documentos/AVA-Q-A/app/src/main/res/drawable/ava_loading.png\")",
+      "Bash(cp \"C:/Users/jerry/Downloads/Ava rika/ava_scanning-removebg-preview.png\" \"C:/Users/jerry/OneDrive/Documentos/AVA-Q-A/app/src/main/res/drawable/ava_scanning.png\")",
+      "Bash(cp \"C:/Users/jerry/Downloads/Ava rika/ava_success-removebg-preview.png\" \"C:/Users/jerry/OneDrive/Documentos/AVA-Q-A/app/src/main/res/drawable/ava_success.png\")"
     ]
   }
 }

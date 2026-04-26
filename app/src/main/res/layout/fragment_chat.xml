@@ -12,7 +12,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:background="@color/green_primary"
-        android:paddingHorizontal="16dp"
+        android:paddingHorizontal="4dp"
         android:paddingTop="8dp"
         android:paddingBottom="14dp"
         app:layout_constraintEnd_toEndOf="parent"
@@ -21,8 +21,9 @@
 
         <ImageButton
             android:id="@+id/btnBack"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:padding="10dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/content_desc_back"
             android:src="@drawable/ic_exit_app"
@@ -32,8 +33,9 @@
 
         <ImageButton
             android:id="@+id/btnHelp"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:padding="10dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/content_desc_help"
             android:src="@drawable/ic_help_outline"
@@ -65,24 +67,36 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- ========== DARK CARD WITH AVA (compact) ========== -->
+    <!-- ========== CAMERA AR CARD WITH AVA (compact) ========== -->
     <FrameLayout
         android:id="@+id/avaCard"
         android:layout_width="0dp"
-        android:layout_height="130dp"
-        android:layout_marginHorizontal="16dp"
+        android:layout_height="160dp"
+        android:layout_marginHorizontal="20dp"
         android:layout_marginTop="10dp"
         android:background="@drawable/bg_dark_card"
+        android:clipChildren="false"
+        android:clipToPadding="false"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/header">
 
-        <ImageView
+        <androidx.camera.view.PreviewView
+            android:id="@+id/cameraPreview"
             android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <!-- AVA floating over camera (AR effect) -->
+        <ImageView
+            android:id="@+id/avaFloating"
+            android:layout_width="140dp"
             android:layout_height="match_parent"
+            android:layout_gravity="start|bottom"
+            android:layout_marginStart="8dp"
             android:contentDescription="@string/content_desc_ava"
-            android:scaleType="fitCenter"
+            android:scaleType="fitEnd"
             android:src="@drawable/ava_explaining" />
+
     </FrameLayout>
 
     <!-- ========== CHAT SCROLL ========== -->
@@ -91,7 +105,7 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:clipToPadding="false"
-        android:paddingHorizontal="16dp"
+        android:paddingHorizontal="20dp"
         android:paddingTop="10dp"
         android:paddingBottom="6dp"
         app:layout_constraintBottom_toTopOf="@id/panelContainer"

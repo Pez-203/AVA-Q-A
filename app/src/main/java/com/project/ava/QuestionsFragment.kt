@@ -6,6 +6,10 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.core.content.ContextCompat
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
@@ -50,7 +54,26 @@ class QuestionsFragment : Fragment() {
             findNavController().popBackStack(R.id.homeFragment, false)
         }
 
+        binding.avaCard.clipToOutline = true
+        startCamera()
         loadQuestions(categoryId)
+    }
+
+    private fun startCamera() {
+        val cameraProviderFuture = ProcessCameraProvider.getInstance(requireContext())
+        cameraProviderFuture.addListener({
+            if (!isAdded) return@addListener
+            val cameraProvider = cameraProviderFuture.get()
+
+            val preview = Preview.Builder().build().also {
+                it.surfaceProvider = binding.cameraPreview.surfaceProvider
+            }
+
+            cameraProvider.unbindAll()
+            cameraProvider.bindToLifecycle(
+                viewLifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview
+            )
+        }, ContextCompat.getMainExecutor(requireContext()))
     }
 
     private fun loadQuestions(categoryId: Long) {
