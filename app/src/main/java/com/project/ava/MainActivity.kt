@@ -124,8 +124,6 @@ class MainActivity : AppCompatActivity() {
         // binding.initialUi.visibility = View.GONE // Mantener visible el resto de la UI
         binding.cameraPreview.visibility = View.VISIBLE
         binding.scanInstructionArea.visibility = View.VISIBLE
-        binding.scanInstruction.visibility = View.VISIBLE
-        showAvaOverlay()
         startCamera(binding.cameraPreview)
     }
 
@@ -200,11 +198,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleQrCode(qrCode: String) {
-        // FeedBack inmediato
-        runOnUiThread {
-            Toast.makeText(this, "Lectura: $qrCode", Toast.LENGTH_SHORT).show()
-        }
-
         scope.launch(Dispatchers.Main) {
             try {
                 stopCamera()
@@ -212,8 +205,6 @@ class MainActivity : AppCompatActivity() {
                 // Mostrar pantalla de carga
                 binding.cameraPreview.visibility = View.INVISIBLE
                 binding.scanInstructionArea.visibility = View.GONE
-                binding.scanInstruction.visibility = View.GONE
-                hideAvaOverlay()
                 
                 binding.composeView.visibility = View.VISIBLE
                 composeScreenState = "loading"
@@ -248,27 +239,6 @@ class MainActivity : AppCompatActivity() {
         isProcessing = false
     }
 
-    private fun showAvaOverlay() {
-        binding.avaOverlay.alpha = 0f
-        binding.avaOverlay.visibility = View.VISIBLE
-        binding.avaOverlay.animate()
-            .alpha(1f)
-            .setDuration(500)
-            .start()
-        binding.scanInstruction.visibility = View.GONE
-    }
-
-    private fun hideAvaOverlay() {
-        binding.avaOverlay.animate()
-            .alpha(0f)
-            .setDuration(300)
-            .withEndAction {
-                binding.avaOverlay.visibility = View.INVISIBLE
-                binding.scanInstruction.visibility = View.VISIBLE
-            }
-            .start()
-    }
-
     override fun onBackPressed() {
         if (composeScreenState != null) {
             resetToInitial()
@@ -276,8 +246,6 @@ class MainActivity : AppCompatActivity() {
             stopCamera()
             binding.cameraPreview.visibility = View.INVISIBLE
             binding.scanInstructionArea.visibility = View.GONE
-            binding.scanInstruction.visibility = View.GONE
-            hideAvaOverlay()
             binding.initialUi.visibility = View.VISIBLE
             isProcessing = false
         } else {

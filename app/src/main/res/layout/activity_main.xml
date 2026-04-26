@@ -176,46 +176,6 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Overlays and Instructions for Active Scanner -->
-    <LinearLayout
-        android:id="@+id/avaOverlay"
-        android:layout_width="120dp"
-        android:layout_height="120dp"
-        android:background="@drawable/bg_ava_circle"
-        android:elevation="8dp"
-        android:gravity="center"
-        android:orientation="vertical"
-        android:visibility="invisible"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="AVA"
-            android:textColor="@android:color/white"
-            android:textSize="28sp"
-            android:textStyle="bold" />
-    </LinearLayout>
-
-    <TextView
-        android:id="@+id/scanInstruction"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="40dp"
-        android:background="#80000000"
-        android:paddingHorizontal="20dp"
-        android:paddingVertical="10dp"
-        android:text="Escanea un código QR"
-        android:textColor="@android:color/white"
-        android:textSize="16sp"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
-
     <!-- ComposeView for Modals -->
     <androidx.compose.ui.platform.ComposeView
         android:id="@+id/composeView"
