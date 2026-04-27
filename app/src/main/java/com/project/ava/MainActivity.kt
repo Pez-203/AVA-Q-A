@@ -1,5 +1,9 @@
 package com.project.ava
 
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import androidx.core.app.ActivityCompat
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -65,13 +69,19 @@ class MainActivity : AppCompatActivity() {
     private var currentData: CategoryWithQuestions? = null
     private var showExitDialog by mutableStateOf(false)
 
+    private var isPermanentlyDenied by mutableStateOf(false)
+
     private val cameraPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (granted) {
+            isPermanentlyDenied = false
+            hidePermissionDeniedWarning()
             startScanning()
         } else {
-            Toast.makeText(this, "Se necesita permiso de cámara", Toast.LENGTH_LONG).show()
+            // Check if it's permanently denied
+            isPermanentlyDenied = !ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.CAMERA)
+            showPermissionDeniedWarning()
         }
     }
 
@@ -135,22 +145,67 @@ class MainActivity : AppCompatActivity() {
         binding.btnScan.setOnClickListener {
             checkCameraPermission()
         }
+
+        setupPermissionWarning()
+    }
+
+    private fun setupPermissionWarning() {
+        binding.permissionDeniedComposeView.setContent {
+            PermissionDeniedWarning(
+                isPermanentlyDenied = isPermanentlyDenied,
+                onRetry = {
+                    checkCameraPermission()
+                },
+                onOpenSettings = {
+                    openAppSettings()
+                }
+            )
+        }
+    }
+
+    private fun openAppSettings() {
+        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+            data = Uri.fromParts("package", packageName, null)
+        }
+        startActivity(intent)
+    }
+
+    private fun showPermissionDeniedWarning() {
+        binding.cameraPreview.visibility = View.INVISIBLE
+        binding.scanInstructionArea.visibility = View.GONE
+        binding.scanLine.visibility = View.GONE
+        binding.whiteDot.visibility = View.GONE
+        binding.permissionDeniedComposeView.visibility = View.VISIBLE
+    }
+
+    private fun hidePermissionDeniedWarning() {
+        binding.permissionDeniedComposeView.visibility = View.GONE
+        // Note: startScanning will restore other visibilities
     }
 
     private fun checkCameraPermission() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
             == PackageManager.PERMISSION_GRANTED
         ) {
+            isPermanentlyDenied = false
+            hidePermissionDeniedWarning()
             startScanning()
         } else {
+            // Check if already permanently denied before launching
+            isPermanentlyDenied = !ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.CAMERA) &&
+                    ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED
+
             cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
     }
 
     private fun startScanning() {
         // binding.initialUi.visibility = View.GONE // Mantener visible el resto de la UI
+        binding.permissionDeniedComposeView.visibility = View.GONE
         binding.cameraPreview.visibility = View.VISIBLE
         binding.scanInstructionArea.visibility = View.VISIBLE
+        binding.scanLine.visibility = View.VISIBLE
+        binding.whiteDot.visibility = View.VISIBLE
         startCamera(binding.cameraPreview)
     }
 

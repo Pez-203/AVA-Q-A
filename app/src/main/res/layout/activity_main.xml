@@ -105,6 +105,13 @@
                 android:layout_gravity="center_vertical"
                 android:layout_marginStart="32dp"
                 android:background="@drawable/bg_white_dot" />
+
+            <!-- Permission Denied Warning -->
+            <androidx.compose.ui.platform.ComposeView
+                android:id="@+id/permissionDeniedComposeView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:visibility="gone" />
         </FrameLayout>
 
         <!-- Instruction and Button Area -->
