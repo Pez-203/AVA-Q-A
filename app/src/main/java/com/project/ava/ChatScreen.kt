@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -24,6 +25,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.project.ava.data.Question
+import kotlinx.coroutines.launch
+
+// Modelo simple para el historial de chat
+private data class ChatMessage(
+    val text: String,
+    val isUser: Boolean
+)
 
 @Composable
 fun ChatScreen(
@@ -32,15 +40,20 @@ fun ChatScreen(
     onBack: () -> Unit,
     onHelp: () -> Unit
 ) {
-    var selectedQuestion by remember { mutableStateOf<Question?>(null) }
-    var isMenuVisible by remember { mutableStateOf(true) }
+    // CAMBIO CLAVE: en lugar de "selectedQuestion" y "isMenuVisible" que reseteaban todo,
+    // ahora usamos una lista acumulativa de mensajes y un booleano solo para abrir/cerrar el panel.
+    val chatHistory = remember { mutableStateListOf<ChatMessage>() }
+    var isMenuExpanded by remember { mutableStateOf(chatHistory.isEmpty()) }
+
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.White)
     ) {
-        // Header
+        // ── Header ──────────────────────────────────────────────────────────
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -87,14 +100,16 @@ fun ChatScreen(
             }
         }
 
+        // ── Contenido principal (imagen + historial de chat) ─────────────────
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // AVA Thinking Image Area
+            // Imagen de AVA pensando (siempre visible arriba)
             item {
                 Box(
                     modifier = Modifier
@@ -109,8 +124,6 @@ fun ChatScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Fit
                     )
-                    
-                    // Small overlay text/icon similar to image
                     Surface(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
@@ -139,28 +152,87 @@ fun ChatScreen(
                 }
             }
 
-            if (isMenuVisible) {
-                // FAQ Section - Menu with all questions
-                item {
+            // CAMBIO CLAVE: renderizamos TODOS los mensajes del historial acumulativo.
+            // Antes había 4 items hardcodeados; ahora iteram sobre chatHistory dinámico.
+            items(chatHistory) { message ->
+                ChatBubble(text = message.text, isUser = message.isUser)
+            }
+        }
+
+        // ── Panel desplegable "Preguntas" ─────────────────────────────────────
+        // CAMBIO CLAVE: este panel ya NO borra el historial al abrirse.
+        // Solo muestra/oculta la lista de preguntas disponibles.
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = Color(0xFFC8E6C9),
+            tonalElevation = 4.dp
+        ) {
+            Column {
+                // Botón para expandir / colapsar
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { isMenuExpanded = !isMenuExpanded }
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Email,
+                        contentDescription = null,
+                        tint = Color.Black,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Preguntas",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Icon(
+                        imageVector = if (isMenuExpanded)
+                            Icons.Default.KeyboardArrowDown
+                        else
+                            Icons.Default.KeyboardArrowUp,
+                        contentDescription = null
+                    )
+                }
+
+                // Lista de TODAS las preguntas disponibles (visible solo cuando está expandido)
+                if (isMenuExpanded) {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        color = Color(0xFFF1F8E9),
-                        shape = RoundedCornerShape(8.dp)
+                        color = Color(0xFFF1F8E9)
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                             Text(
                                 text = "Preguntas Frecuentes",
                                 color = Color(0xFF2E7D32),
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(bottom = 8.dp)
                             )
-                            Spacer(modifier = Modifier.height(12.dp))
+                            // CAMBIO CLAVE: mostramos TODAS las preguntas de la lista recibida,
+                            // no una sola. La lista viene directamente de AppDatabase via ViewModel.
                             questions.forEach { question ->
                                 FaqMenuItem(
                                     question = question.questionText,
                                     onClick = {
-                                        selectedQuestion = question
-                                        isMenuVisible = false
+                                        // Agrega pregunta y respuesta al historial (no reemplaza)
+                                        chatHistory.add(ChatMessage(question.questionText, isUser = true))
+                                        chatHistory.add(ChatMessage(question.answerText, isUser = false))
+
+                                        // Colapsa el panel para ver el chat
+                                        isMenuExpanded = false
+
+                                        // Hace scroll al último mensaje
+                                        coroutineScope.launch {
+                                            listState.animateScrollToItem(
+                                                index = listState.layoutInfo.totalItemsCount - 1
+                                            )
+                                        }
                                     }
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
@@ -168,52 +240,6 @@ fun ChatScreen(
                         }
                     }
                 }
-            } else if (selectedQuestion != null) {
-                // Chat flow for the selected question
-                item {
-                    ChatBubble(text = selectedQuestion!!.questionText, isUser = true)
-                }
-                item {
-                    ChatBubble(text = selectedQuestion!!.answerText, isUser = false)
-                }
-                item {
-                    ChatBubble(text = "¿Tengo otra duda?", isUser = true)
-                }
-                item {
-                    ChatBubble(text = "Claro, puedes seleccionar otra pregunta del menú o cerrar la aplicación.", isUser = false)
-                }
-            }
-        }
-
-        // Bottom Button/Bar
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { isMenuVisible = true },
-            color = Color(0xFFC8E6C9)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Email,
-                    contentDescription = null,
-                    tint = Color.Black,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Preguntas",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Icon(imageVector = Icons.Default.KeyboardArrowUp, contentDescription = null)
             }
         }
     }
@@ -273,8 +299,6 @@ fun ChatBubble(text: String, isUser: Boolean) {
         }
     }
 }
-
-// Removing unused FaqItem to keep code clean
 
 @Preview(showBackground = true)
 @Composable
