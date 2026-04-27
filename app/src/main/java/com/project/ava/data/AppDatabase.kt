@@ -35,7 +35,7 @@ abstract class AppDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "ava_database"
+                        "ava_database"
                 )
                     .fallbackToDestructiveMigration()
                     .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
@@ -61,7 +61,7 @@ abstract class AppDatabase : RoomDatabase() {
             // Usamos identificadores que cubran tanto el nombre corto como el nombre del archivo QR
             db.execSQL("INSERT INTO categories (title, qrCode) VALUES ('Reinscripción', 'ESCOLAR_REINSCRIPCION.png')")
             db.execSQL("INSERT INTO categories (title, qrCode) VALUES ('Titulación', 'ESCOLAR_TITULACION.png')")
-            db.execSQL("INSERT INTO categories (title, qrCode) VALUES ('Práctica de Laboratorio', 'PRACTICA_LAB_01.png')")
+            //db.execSQL("INSERT INTO categories (title, qrCode) VALUES ('Práctica de Laboratorio', 'PRACTICA_LAB_01.png')")
 
             // ── REINSCRIPCIÓN (categoryId = 1) ──
 
@@ -153,17 +153,17 @@ abstract class AppDatabase : RoomDatabase() {
 
             // ── PRÁCTICA DE LABORATORIO (categoryId = 3) ──
 
-            insertQ(db, 3,
-                "¿Cómo funciona la práctica?",
-                "La práctica funciona siguiendo los pasos indicados en el manual de laboratorio, asegurando el correcto uso del equipo y el registro de datos.")
+           // insertQ(db, 3,
+           //     "¿Cómo funciona la práctica?",
+           //     "La práctica funciona siguiendo los pasos indicados en el manual de laboratorio, asegurando el correcto uso del equipo y el registro de datos.")
 
-            insertQ(db, 3,
-                "¿Dónde encuentro los materiales?",
-                "Los materiales se encuentran en el locker asignado a esta estación de trabajo. Favor de dejarlos ordenados al terminar.")
+            //insertQ(db, 3,
+              //  "¿Dónde encuentro los materiales?",
+                //"Los materiales se encuentran en el locker asignado a esta estación de trabajo. Favor de dejarlos ordenados al terminar.")
 
-            insertQ(db, 3,
-                "¿Cuál es el objetivo de esta estación?",
-                "El objetivo es identificar los componentes principales del sistema y validar su funcionamiento mediante pruebas de continuidad.")
+            //insertQ(db, 3,
+              //  "¿Cuál es el objetivo de esta estación?",
+              //  "El objetivo es identificar los componentes principales del sistema y validar su funcionamiento mediante pruebas de continuidad.")
         }
     }
 }

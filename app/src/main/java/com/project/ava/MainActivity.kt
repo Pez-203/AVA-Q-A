@@ -246,7 +246,8 @@ class MainActivity : AppCompatActivity() {
                     currentData = result
                     composeScreenState = "chat"
                 } else {
-                    Toast.makeText(this@MainActivity, "Código QR no reconocido: $qrCode", Toast.LENGTH_LONG).show()
+                    // Si no se encuentra en la base de datos, mostramos error y volvemos al inicio
+                    Toast.makeText(this@MainActivity, "Categoría no encontrada: $qrCode", Toast.LENGTH_LONG).show()
                     resetToInitial()
                 }
             } catch (e: Exception) {

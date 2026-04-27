@@ -33,6 +33,7 @@ fun ChatScreen(
     onHelp: () -> Unit
 ) {
     var selectedQuestion by remember { mutableStateOf<Question?>(null) }
+    var isMenuVisible by remember { mutableStateOf(true) }
 
     Column(
         modifier = Modifier
@@ -138,34 +139,8 @@ fun ChatScreen(
                 }
             }
 
-            // Chat conversation
-            if (selectedQuestion != null) {
-                item {
-                    ChatBubble(
-                        text = selectedQuestion!!.questionText,
-                        isUser = true
-                    )
-                }
-                item {
-                    ChatBubble(
-                        text = selectedQuestion!!.answerText,
-                        isUser = false
-                    )
-                }
-                item {
-                    ChatBubble(
-                        text = "¿Tengo otra duda?",
-                        isUser = true
-                    )
-                }
-                item {
-                    ChatBubble(
-                        text = "Claro, puedes seleccionar otra pregunta del menú o cerrar la aplicación.",
-                        isUser = false
-                    )
-                }
-            } else {
-                // FAQ Section
+            if (isMenuVisible) {
+                // FAQ Section - Menu with all questions
                 item {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
@@ -181,28 +156,46 @@ fun ChatScreen(
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             questions.forEach { question ->
-                                FaqItem(
+                                FaqMenuItem(
                                     question = question.questionText,
-                                    onClick = { selectedQuestion = question }
+                                    onClick = {
+                                        selectedQuestion = question
+                                        isMenuVisible = false
+                                    }
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                             }
                         }
                     }
                 }
+            } else if (selectedQuestion != null) {
+                // Chat flow for the selected question
+                item {
+                    ChatBubble(text = selectedQuestion!!.questionText, isUser = true)
+                }
+                item {
+                    ChatBubble(text = selectedQuestion!!.answerText, isUser = false)
+                }
+                item {
+                    ChatBubble(text = "¿Tengo otra duda?", isUser = true)
+                }
+                item {
+                    ChatBubble(text = "Claro, puedes seleccionar otra pregunta del menú o cerrar la aplicación.", isUser = false)
+                }
             }
         }
 
         // Bottom Button/Bar
         Surface(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { isMenuVisible = true },
             color = Color(0xFFC8E6C9)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
-                    .clickable { selectedQuestion = null },
+                    .padding(16.dp),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -214,48 +207,20 @@ fun ChatScreen(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = if (selectedQuestion == null) "Otras Preguntas" else "Preguntas",
+                    text = "Preguntas",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.Black
                 )
-                if (selectedQuestion != null) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Icon(imageVector = Icons.Default.KeyboardArrowUp, contentDescription = null)
-                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Icon(imageVector = Icons.Default.KeyboardArrowUp, contentDescription = null)
             }
         }
     }
 }
 
 @Composable
-fun ChatBubble(text: String, isUser: Boolean) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = if (isUser) Alignment.End else Alignment.Start
-    ) {
-        Surface(
-            color = if (isUser) Color(0xFF81C784) else Color(0xFFE8F5E9),
-            shape = RoundedCornerShape(
-                topStart = 12.dp,
-                topEnd = 12.dp,
-                bottomStart = if (isUser) 12.dp else 0.dp,
-                bottomEnd = if (isUser) 0.dp else 12.dp
-            ),
-            modifier = Modifier.widthIn(max = 280.dp)
-        ) {
-            Text(
-                text = text,
-                modifier = Modifier.padding(12.dp),
-                color = if (isUser) Color.White else Color(0xFF2E7D32),
-                fontSize = 16.sp
-            )
-        }
-    }
-}
-
-@Composable
-fun FaqItem(question: String, onClick: () -> Unit) {
+fun FaqMenuItem(question: String, onClick: () -> Unit) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -282,6 +247,34 @@ fun FaqItem(question: String, onClick: () -> Unit) {
         }
     }
 }
+
+@Composable
+fun ChatBubble(text: String, isUser: Boolean) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = if (isUser) Alignment.End else Alignment.Start
+    ) {
+        Surface(
+            color = if (isUser) Color(0xFF66BB6A) else Color(0xFFE8F5E9),
+            shape = RoundedCornerShape(
+                topStart = 12.dp,
+                topEnd = 12.dp,
+                bottomStart = if (isUser) 12.dp else 0.dp,
+                bottomEnd = if (isUser) 0.dp else 12.dp
+            ),
+            modifier = Modifier.widthIn(max = 280.dp)
+        ) {
+            Text(
+                text = text,
+                modifier = Modifier.padding(12.dp),
+                color = if (isUser) Color.White else Color(0xFF2E7D32),
+                fontSize = 16.sp
+            )
+        }
+    }
+}
+
+// Removing unused FaqItem to keep code clean
 
 @Preview(showBackground = true)
 @Composable
