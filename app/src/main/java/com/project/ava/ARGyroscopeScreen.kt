@@ -52,22 +52,55 @@ private fun rememberParallaxOffset(): State<Offset> {
         val sensor = sm.getDefaultSensor(Sensor.TYPE_GAME_ROTATION_VECTOR)
             ?: sm.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
 
-        var refPitch = Float.NaN
-        var refRoll  = Float.NaN
-        val sens = 4f
-        val max  = 18f
+        var refPitch   = Float.NaN
+        var refAzimuth = Float.NaN
+        val sens = 12f
+        val max  = 160f
 
         val listener = object : SensorEventListener {
-            private val rm  = FloatArray(9)
-            private val ori = FloatArray(3)
+            private val rm    = FloatArray(9)
+            private val outRm = FloatArray(9)
+            private val ori   = FloatArray(3)
+
+            // Suavizado
+            private var smoothAz = 0f
+            private var smoothPi = 0f
+            private val alpha    = 0.15f
+            private var first    = true
+            private var count    = 0
+
             override fun onSensorChanged(e: SensorEvent) {
+                if (e.values.size < 3) return
                 SensorManager.getRotationMatrixFromVector(rm, e.values)
-                SensorManager.getOrientation(rm, ori)
-                val pitch = Math.toDegrees(ori[1].toDouble()).toFloat()
-                val roll  = Math.toDegrees(ori[2].toDouble()).toFloat()
-                if (refPitch.isNaN()) { refPitch = pitch; refRoll = roll; return }
-                val dx = (-(roll - refRoll) * sens).coerceIn(-max, max)
-                val dy = ((pitch - refPitch) * sens).coerceIn(-max, max)
+                SensorManager.remapCoordinateSystem(rm, SensorManager.AXIS_X, SensorManager.AXIS_Z, outRm)
+                SensorManager.getOrientation(outRm, ori)
+
+                val az = Math.toDegrees(ori[0].toDouble()).toFloat()
+                val pi = Math.toDegrees(ori[1].toDouble()).toFloat()
+
+                if (first) {
+                    smoothAz = az; smoothPi = pi; first = false
+                } else {
+                    smoothAz += alpha * (az - smoothAz)
+                    smoothPi += alpha * (pi - smoothPi)
+                }
+
+                if (count < 10) {
+                    count++
+                    if (count == 10) {
+                        refAzimuth = smoothAz
+                        refPitch   = smoothPi
+                    }
+                    return
+                }
+
+                var dAz = smoothAz - refAzimuth
+                if (dAz > 180)  dAz -= 360
+                if (dAz < -180) dAz += 360
+                val dPi = smoothPi - refPitch
+
+                val dx = (dAz * sens).coerceIn(-max, max)
+                val dy = (-dPi * sens).coerceIn(-max, max)
                 raw.value = Offset(dx, dy)
             }
             override fun onAccuracyChanged(s: Sensor?, a: Int) {}
@@ -93,6 +126,8 @@ fun ARGyroscopeScreen(
     val px by animateFloatAsState(parallaxRaw.x, spring(stiffness = Spring.StiffnessLow), label = "px")
     val py by animateFloatAsState(parallaxRaw.y, spring(stiffness = Spring.StiffnessLow), label = "py")
 
+    val densityVal = context.resources.displayMetrics.density
+
     var hoveredIndex     by remember { mutableStateOf(-1) }
     var hoverProgress    by remember { mutableStateOf(0f) }
     var selectedQuestion by remember { mutableStateOf<Question?>(null) }
@@ -108,18 +143,21 @@ fun ARGyroscopeScreen(
         if (screenCenter == Offset.Zero || showAnswer) return@LaunchedEffect
         var closest = -1
         var minDist = Float.MAX_VALUE
+
+        val pointerPos = Offset(
+            screenCenter.x + (px * densityVal),
+            screenCenter.y + (py * densityVal)
+        )
+
         chipCenters.forEach { (idx, center) ->
-            // El chip se desplaza con parallax, ajustar su centro
-            val adjustedCenter = Offset(center.x + px, center.y + py)
             val dist = sqrt(
-                (adjustedCenter.x - screenCenter.x).pow(2) +
-                        (adjustedCenter.y - screenCenter.y).pow(2)
+                (center.x - pointerPos.x).pow(2) +
+                        (center.y - pointerPos.y).pow(2)
             )
             if (dist < minDist) { minDist = dist; closest = idx }
         }
         // Solo activar si está suficientemente cerca (radio del retículo ~55dp)
-        val density    = context.resources.displayMetrics.density
-        val threshold  = 80.dp.value * density
+        val threshold  = 80.dp.value * densityVal
         hoveredIndex = if (minDist < threshold) closest else -1
     }
 
@@ -180,12 +218,10 @@ fun ARGyroscopeScreen(
                 .background(Color(0xFF060F1C).copy(alpha = 0.52f))
         )
 
-        // ── CAPA 3: Cuadrícula de preguntas (con parallax) ────────────────────
+        // ── CAPA 3: Cuadrícula de preguntas (estática) ───────────────────────
         if (!showAnswer) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .offset(x = px.dp, y = py.dp)
+                modifier = Modifier.fillMaxSize()
             ) {
                 // Dividir preguntas: mitad arriba del retículo, mitad abajo
                 val half  = (questions.size + 1) / 2
@@ -264,12 +300,13 @@ fun ARGyroscopeScreen(
             }
         }
 
-        // ── CAPA 4: Retículo central fijo ─────────────────────────────────────
+        // ── CAPA 4: Retículo central móvil ───────────────────────────────────
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val cx       = size.width  / 2f
-            val cy       = size.height / 2f
-            val density  = context.resources.displayMetrics.density
-            val r        = 55.dp.value * density
+            val offsetX  = px * densityVal
+            val offsetY  = py * densityVal
+            val cx       = size.width  / 2f + offsetX
+            val cy       = size.height / 2f + offsetY
+            val r        = 55.dp.value * densityVal
             val isAiming = hoveredIndex >= 0 && !showAnswer
 
             // Halo exterior
