@@ -19,8 +19,6 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
-import com.google.android.material.bottomsheet.BottomSheetDialog
-import com.google.android.material.button.MaterialButton
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
@@ -34,7 +32,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -65,11 +62,15 @@ class MainActivity : AppCompatActivity() {
     @Volatile
     private var isProcessing = false
 
-    private var composeScreenState by mutableStateOf<String?>(null) // null, "loading", "chat"
+    // Estados: null → "loading" → "ar" → "argyro" → "chat"
+    private var composeScreenState by mutableStateOf<String?>(null)
     private var currentData: CategoryWithQuestions? = null
     private var showExitDialog by mutableStateOf(false)
-
     private var isPermanentlyDenied by mutableStateOf(false)
+
+    // Pregunta pre-seleccionada desde la pantalla AR giroscopio
+    // Si es no-null cuando se abre ChatScreen, se añade automáticamente al historial
+    private var preSelectedQuestion by mutableStateOf<Question?>(null)
 
     private val cameraPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -79,8 +80,9 @@ class MainActivity : AppCompatActivity() {
             hidePermissionDeniedWarning()
             startScanning()
         } else {
-            // Check if it's permanently denied
-            isPermanentlyDenied = !ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.CAMERA)
+            isPermanentlyDenied = !ActivityCompat.shouldShowRequestPermissionRationale(
+                this, Manifest.permission.CAMERA
+            )
             showPermissionDeniedWarning()
         }
     }
@@ -96,7 +98,7 @@ class MainActivity : AppCompatActivity() {
 
         binding.composeView.setContent {
             val screen = composeScreenState
-            val data = currentData
+            val data   = currentData
 
             if (showExitDialog) {
                 ExitConfirmationDialog(
@@ -111,22 +113,62 @@ class MainActivity : AppCompatActivity() {
             }
 
             when (screen) {
+                // ── 1. Pantalla de carga ──────────────────────────────────────
                 "loading" -> {
                     LoadingScreen(
                         onBack = { resetToInitial() },
                         onHelp = {
-                            Toast.makeText(this@MainActivity, "Cargando recursos...", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                this@MainActivity,
+                                "Cargando recursos...",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                     )
                 }
+
+                // ── 2. Animación AR intro (ya existente) ──────────────────────
+                "ar" -> {
+                    if (data != null) {
+                        AROverlayScreen(
+                            categoryTitle     = data.category.title,
+                            onAnimationFinished = {
+                                // Después del intro AR, va a la pantalla de giroscopio
+                                composeScreenState = "argyro"
+                            }
+                        )
+                    }
+                }
+
+                // ── 3. Selección AR con giroscopio ────────────────────────────
+                "argyro" -> {
+                    if (data != null) {
+                        ARGyroscopeScreen(
+                            questions = data.questions,
+                            onQuestionSelected = { question ->
+                                // Guarda la pregunta elegida y va al chat
+                                preSelectedQuestion = question
+                                composeScreenState = "chat"
+                            },
+                            onBack = { resetToInitial() }
+                        )
+                    }
+                }
+
+                // ── 4. Chat con historial ─────────────────────────────────────
                 "chat" -> {
                     if (data != null) {
                         ChatScreen(
-                            categoryTitle = data.category.title,
-                            questions = data.questions,
-                            onBack = { resetToInitial() },
-                            onHelp = {
-                                Toast.makeText(this@MainActivity, "Ayuda activa.", Toast.LENGTH_SHORT).show()
+                            categoryTitle     = data.category.title,
+                            questions         = data.questions,
+                            initialQuestion   = preSelectedQuestion,
+                            onBack            = { resetToInitial() },
+                            onHelp            = {
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "Ayuda activa.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
                             }
                         )
                     }
@@ -135,16 +177,13 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.composeView.visibility = View.GONE
-        binding.initialUi.visibility = View.VISIBLE
+        binding.initialUi.visibility   = View.VISIBLE
 
         binding.btnMenu.setOnClickListener {
             binding.composeView.visibility = View.VISIBLE
             showExitDialog = true
         }
-
-        binding.btnScan.setOnClickListener {
-            checkCameraPermission()
-        }
+        binding.btnScan.setOnClickListener { checkCameraPermission() }
 
         setupPermissionWarning()
     }
@@ -153,34 +192,30 @@ class MainActivity : AppCompatActivity() {
         binding.permissionDeniedComposeView.setContent {
             PermissionDeniedWarning(
                 isPermanentlyDenied = isPermanentlyDenied,
-                onRetry = {
-                    checkCameraPermission()
-                },
-                onOpenSettings = {
-                    openAppSettings()
-                }
+                onRetry             = { checkCameraPermission() },
+                onOpenSettings      = { openAppSettings() }
             )
         }
     }
 
     private fun openAppSettings() {
-        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-            data = Uri.fromParts("package", packageName, null)
-        }
-        startActivity(intent)
+        startActivity(
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.fromParts("package", packageName, null)
+            }
+        )
     }
 
     private fun showPermissionDeniedWarning() {
-        binding.cameraPreview.visibility = View.INVISIBLE
-        binding.scanInstructionArea.visibility = View.GONE
-        binding.scanLine.visibility = View.GONE
-        binding.whiteDot.visibility = View.GONE
+        binding.cameraPreview.visibility           = View.INVISIBLE
+        binding.scanInstructionArea.visibility     = View.GONE
+        binding.scanLine.visibility                = View.GONE
+        binding.whiteDot.visibility                = View.GONE
         binding.permissionDeniedComposeView.visibility = View.VISIBLE
     }
 
     private fun hidePermissionDeniedWarning() {
         binding.permissionDeniedComposeView.visibility = View.GONE
-        // Note: startScanning will restore other visibilities
     }
 
     private fun checkCameraPermission() {
@@ -191,58 +226,52 @@ class MainActivity : AppCompatActivity() {
             hidePermissionDeniedWarning()
             startScanning()
         } else {
-            // Check if already permanently denied before launching
-            isPermanentlyDenied = !ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.CAMERA) &&
-                    ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED
-
+            isPermanentlyDenied =
+                !ActivityCompat.shouldShowRequestPermissionRationale(
+                    this, Manifest.permission.CAMERA
+                ) && ContextCompat.checkSelfPermission(
+                    this, Manifest.permission.CAMERA
+                ) != PackageManager.PERMISSION_GRANTED
             cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
     }
 
     private fun startScanning() {
-        // binding.initialUi.visibility = View.GONE // Mantener visible el resto de la UI
         binding.permissionDeniedComposeView.visibility = View.GONE
-        binding.cameraPreview.visibility = View.VISIBLE
-        binding.scanInstructionArea.visibility = View.VISIBLE
-        binding.scanLine.visibility = View.VISIBLE
-        binding.whiteDot.visibility = View.VISIBLE
+        binding.cameraPreview.visibility               = View.VISIBLE
+        binding.scanInstructionArea.visibility         = View.VISIBLE
+        binding.scanLine.visibility                    = View.VISIBLE
+        binding.whiteDot.visibility                    = View.VISIBLE
         startCamera(binding.cameraPreview)
     }
 
     private fun startCamera(previewView: PreviewView) {
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
-        cameraProviderFuture.addListener({
-            val cameraProvider = cameraProviderFuture.get()
+        val future = ProcessCameraProvider.getInstance(this)
+        future.addListener({
+            val provider = future.get()
+            val preview  = Preview.Builder().build()
+                .also { it.surfaceProvider = previewView.surfaceProvider }
 
-            val preview = Preview.Builder().build().also {
-                it.surfaceProvider = previewView.surfaceProvider
-            }
-
-            val options = BarcodeScannerOptions.Builder()
-                .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
-                .build()
-            val scanner = BarcodeScanning.getClient(options)
-
-            val imageAnalysis = ImageAnalysis.Builder()
+            val scanner = BarcodeScanning.getClient(
+                BarcodeScannerOptions.Builder()
+                    .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+                    .build()
+            )
+            val analysis = ImageAnalysis.Builder()
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
-                .also { analysis ->
-                    analysis.setAnalyzer(cameraExecutor) { imageProxy ->
-                        processImage(imageProxy, scanner)
-                    }
-                }
+                .also { it.setAnalyzer(cameraExecutor) { proxy -> processImage(proxy, scanner) } }
 
-            cameraProvider.unbindAll()
-            cameraProvider.bindToLifecycle(
-                this, CameraSelector.DEFAULT_BACK_CAMERA, preview, imageAnalysis
+            provider.unbindAll()
+            provider.bindToLifecycle(
+                this, CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis
             )
         }, ContextCompat.getMainExecutor(this))
     }
 
     private fun stopCamera() {
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
-        cameraProviderFuture.addListener({
-            cameraProviderFuture.get().unbindAll()
+        ProcessCameraProvider.getInstance(this).addListener({
+            ProcessCameraProvider.getInstance(this).get().unbindAll()
         }, ContextCompat.getMainExecutor(this))
     }
 
@@ -251,31 +280,20 @@ class MainActivity : AppCompatActivity() {
         imageProxy: ImageProxy,
         scanner: com.google.mlkit.vision.barcode.BarcodeScanner
     ) {
-        if (isProcessing) {
-            imageProxy.close()
-            return
-        }
+        if (isProcessing) { imageProxy.close(); return }
+        val mediaImage = imageProxy.image ?: run { imageProxy.close(); return }
 
-        val mediaImage = imageProxy.image
-        if (mediaImage == null) {
-            imageProxy.close()
-            return
-        }
-
-        val inputImage = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
-        scanner.process(inputImage)
-            .addOnSuccessListener { barcodes ->
-                for (barcode in barcodes) {
-                    barcode.rawValue?.let { qrText ->
-                        if (!isProcessing) {
-                            isProcessing = true
-                            handleQrCode(qrText)
+        InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
+            .let { img ->
+                scanner.process(img)
+                    .addOnSuccessListener { barcodes ->
+                        barcodes.forEach { barcode ->
+                            barcode.rawValue?.let { qr ->
+                                if (!isProcessing) { isProcessing = true; handleQrCode(qr) }
+                            }
                         }
                     }
-                }
-            }
-            .addOnCompleteListener {
-                imageProxy.close()
+                    .addOnCompleteListener { imageProxy.close() }
             }
     }
 
@@ -283,26 +301,25 @@ class MainActivity : AppCompatActivity() {
         scope.launch(Dispatchers.Main) {
             try {
                 stopCamera()
-                
-                // Mostrar pantalla de carga
-                binding.cameraPreview.visibility = View.INVISIBLE
+                binding.cameraPreview.visibility       = View.INVISIBLE
                 binding.scanInstructionArea.visibility = View.GONE
-                
+
                 binding.composeView.visibility = View.VISIBLE
                 composeScreenState = "loading"
-                
-                // Cargar datos
+
                 val result = repository.getCategoryWithQuestions(qrCode)
-                
-                // Retraso artificial para que se vea la pantalla de carga (según requerimiento)
                 delay(2000)
-                
+
                 if (result != null) {
-                    currentData = result
-                    composeScreenState = "chat"
+                    currentData         = result
+                    preSelectedQuestion = null   // limpiar selección previa
+                    composeScreenState  = "ar"   // intro AR → argyro → chat
                 } else {
-                    // Si no se encuentra en la base de datos, mostramos error y volvemos al inicio
-                    Toast.makeText(this@MainActivity, "Categoría no encontrada: $qrCode", Toast.LENGTH_LONG).show()
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Categoría no encontrada: $qrCode",
+                        Toast.LENGTH_LONG
+                    ).show()
                     resetToInitial()
                 }
             } catch (e: Exception) {
@@ -313,26 +330,28 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun resetToInitial() {
-        composeScreenState = null
-        currentData = null
-        binding.composeView.visibility = View.GONE
-        binding.cameraPreview.visibility = View.INVISIBLE
+        composeScreenState  = null
+        currentData         = null
+        preSelectedQuestion = null
+        binding.composeView.visibility         = View.GONE
+        binding.cameraPreview.visibility       = View.INVISIBLE
         binding.scanInstructionArea.visibility = View.GONE
-        binding.initialUi.visibility = View.VISIBLE
+        binding.initialUi.visibility           = View.VISIBLE
         isProcessing = false
     }
 
     override fun onBackPressed() {
-        if (composeScreenState != null) {
-            resetToInitial()
-        } else if (binding.cameraPreview.visibility == View.VISIBLE) {
-            stopCamera()
-            binding.cameraPreview.visibility = View.INVISIBLE
-            binding.scanInstructionArea.visibility = View.GONE
-            binding.initialUi.visibility = View.VISIBLE
-            isProcessing = false
-        } else {
-            super.onBackPressed()
+        when (composeScreenState) {
+            "argyro" -> resetToInitial()
+            "ar"     -> resetToInitial()
+            "chat"   -> resetToInitial()
+            else     -> if (binding.cameraPreview.visibility == View.VISIBLE) {
+                stopCamera()
+                binding.cameraPreview.visibility       = View.INVISIBLE
+                binding.scanInstructionArea.visibility = View.GONE
+                binding.initialUi.visibility           = View.VISIBLE
+                isProcessing = false
+            } else super.onBackPressed()
         }
     }
 
@@ -347,78 +366,40 @@ class MainActivity : AppCompatActivity() {
 fun ExitConfirmationDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            modifier  = Modifier.fillMaxWidth().padding(16.dp),
+            shape     = RoundedCornerShape(16.dp),
+            colors    = CardDefaults.cardColors(containerColor = Color.White),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
             Column(
-                modifier = Modifier
-                    .padding(24.dp)
-                    .fillMaxWidth(),
+                modifier = Modifier.padding(24.dp).fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                Text("Salir", fontSize = 22.sp, fontWeight = FontWeight.Bold,
+                    color = Color.Black, textAlign = TextAlign.Center)
+                Spacer(Modifier.height(24.dp))
                 Text(
-                    text = "Salir",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black,
-                    textAlign = TextAlign.Center
+                    "Estas a punto de salir de la aplicación, ¿estas seguro?",
+                    fontSize = 18.sp, color = Color.Black,
+                    textAlign = TextAlign.Center, lineHeight = 24.sp
                 )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Text(
-                    text = "Estas a punto de salir de la aplicación, ¿estas seguro?",
-                    fontSize = 18.sp,
-                    color = Color.Black,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 24.sp
-                )
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
+                Spacer(Modifier.height(32.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     Button(
                         onClick = onDismiss,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(50.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFE0E0E6),
-                            contentColor = Color.Black
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text(
-                            text = "Cancelar",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                        modifier = Modifier.weight(1f).height(50.dp),
+                        colors   = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFE0E0E6), contentColor = Color.Black),
+                        shape    = RoundedCornerShape(12.dp)
+                    ) { Text("Cancelar", fontSize = 16.sp, fontWeight = FontWeight.Bold) }
 
                     Button(
                         onClick = onConfirm,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(50.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF66BB6A),
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text(
-                            text = "Salir",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                        modifier = Modifier.weight(1f).height(50.dp),
+                        colors   = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF66BB6A), contentColor = Color.White),
+                        shape    = RoundedCornerShape(12.dp)
+                    ) { Text("Salir", fontSize = 16.sp, fontWeight = FontWeight.Bold) }
                 }
             }
         }

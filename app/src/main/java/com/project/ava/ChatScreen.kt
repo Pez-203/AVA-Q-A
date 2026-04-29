@@ -1,5 +1,10 @@
 package com.project.ava
 
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -9,51 +14,108 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Email
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.tooling.preview.Preview as ComposePreview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
 import com.project.ava.data.Question
 import kotlinx.coroutines.launch
 
-// Modelo simple para el historial de chat
-private data class ChatMessage(
-    val text: String,
-    val isUser: Boolean
-)
+private data class ChatMessage(val text: String, val isUser: Boolean)
+
+@Composable
+private fun CameraPreviewView(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    AndroidView(
+        modifier = modifier,
+        factory = { ctx ->
+            val previewView = PreviewView(ctx).apply {
+                scaleType = PreviewView.ScaleType.FILL_CENTER
+            }
+            val future = ProcessCameraProvider.getInstance(ctx)
+            future.addListener({
+                try {
+                    val provider = future.get()
+                    val preview = Preview.Builder().build()
+                        .also { it.surfaceProvider = previewView.surfaceProvider }
+                    provider.unbindAll()
+                    provider.bindToLifecycle(
+                        lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview
+                    )
+                } catch (_: Exception) {}
+            }, ContextCompat.getMainExecutor(ctx))
+            previewView
+        }
+    )
+}
+
+@Composable
+private fun ScannerCornersOverlay(modifier: Modifier = Modifier) {
+    val green = Color(0xFF2E7D32)
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val corner = 36.dp.toPx()
+        val stroke = 3.5f.dp.toPx()
+        drawLine(green, Offset(0f, 0f), Offset(corner, 0f), stroke)
+        drawLine(green, Offset(0f, 0f), Offset(0f, corner), stroke)
+        drawLine(green, Offset(w, 0f), Offset(w - corner, 0f), stroke)
+        drawLine(green, Offset(w, 0f), Offset(w, corner), stroke)
+        drawLine(green, Offset(0f, h), Offset(corner, h), stroke)
+        drawLine(green, Offset(0f, h), Offset(0f, h - corner), stroke)
+        drawLine(green, Offset(w, h), Offset(w - corner, h), stroke)
+        drawLine(green, Offset(w, h), Offset(w, h - corner), stroke)
+    }
+}
 
 @Composable
 fun ChatScreen(
     categoryTitle: String,
     questions: List<Question>,
+    // Pregunta pre-seleccionada desde la pantalla AR (puede ser null)
+    initialQuestion: Question? = null,
     onBack: () -> Unit,
     onHelp: () -> Unit
 ) {
-    // CAMBIO CLAVE: en lugar de "selectedQuestion" y "isMenuVisible" que reseteaban todo,
-    // ahora usamos una lista acumulativa de mensajes y un booleano solo para abrir/cerrar el panel.
     val chatHistory = remember { mutableStateListOf<ChatMessage>() }
-    var isMenuExpanded by remember { mutableStateOf(chatHistory.isEmpty()) }
+    var isMenuExpanded by remember { mutableStateOf(true) }
 
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+
+    // Si viene una pregunta pre-seleccionada desde AR, agregarla al historial
+    // una sola vez al entrar a la pantalla
+    LaunchedEffect(initialQuestion) {
+        if (initialQuestion != null && chatHistory.isEmpty()) {
+            chatHistory.add(ChatMessage(initialQuestion.questionText, isUser = true))
+            chatHistory.add(ChatMessage(initialQuestion.answerText, isUser = false))
+            isMenuExpanded = false
+        }
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.White)
     ) {
-        // ── Header ──────────────────────────────────────────────────────────
+        // ── Header ───────────────────────────────────────────────────────────
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -70,7 +132,6 @@ fun ChatScreen(
                     .align(Alignment.TopStart)
                     .clickable { onBack() }
             )
-
             Icon(
                 painter = painterResource(id = R.drawable.ic_help),
                 contentDescription = "Help",
@@ -80,7 +141,6 @@ fun ChatScreen(
                     .align(Alignment.TopEnd)
                     .clickable { onHelp() }
             )
-
             Column(
                 modifier = Modifier.align(Alignment.Center),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -100,16 +160,14 @@ fun ChatScreen(
             }
         }
 
-        // ── Contenido principal (imagen + historial de chat) ─────────────────
+        // ── Contenido principal ──────────────────────────────────────────────
         LazyColumn(
             state = listState,
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
+            modifier = Modifier.weight(1f).fillMaxWidth(),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Imagen de AVA pensando (siempre visible arriba)
+            // Área superior: cámara + personaje
             item {
                 Box(
                     modifier = Modifier
@@ -118,17 +176,26 @@ fun ChatScreen(
                         .clip(RoundedCornerShape(12.dp))
                         .background(Color(0xFF1E2A38))
                 ) {
+                    CameraPreviewView(modifier = Modifier.fillMaxSize())
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color(0xFF1A2433).copy(alpha = 0.40f))
+                    )
+                    ScannerCornersOverlay(modifier = Modifier.fillMaxSize())
                     Image(
                         painter = painterResource(id = R.drawable.ava_think),
-                        contentDescription = "AVA Thinking",
-                        modifier = Modifier.fillMaxSize(),
+                        contentDescription = "AVA",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(bottom = 28.dp),
                         contentScale = ContentScale.Fit
                     )
                     Surface(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .padding(bottom = 8.dp),
-                        color = Color.Black.copy(alpha = 0.6f),
+                        color = Color.Black.copy(alpha = 0.60f),
                         shape = RoundedCornerShape(4.dp)
                     ) {
                         Row(
@@ -152,23 +219,19 @@ fun ChatScreen(
                 }
             }
 
-            // CAMBIO CLAVE: renderizamos TODOS los mensajes del historial acumulativo.
-            // Antes había 4 items hardcodeados; ahora iteram sobre chatHistory dinámico.
+            // Historial acumulativo del chat
             items(chatHistory) { message ->
                 ChatBubble(text = message.text, isUser = message.isUser)
             }
         }
 
         // ── Panel desplegable "Preguntas" ─────────────────────────────────────
-        // CAMBIO CLAVE: este panel ya NO borra el historial al abrirse.
-        // Solo muestra/oculta la lista de preguntas disponibles.
         Surface(
             modifier = Modifier.fillMaxWidth(),
             color = Color(0xFFC8E6C9),
             tonalElevation = 4.dp
         ) {
             Column {
-                // Botón para expandir / colapsar
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -200,13 +263,14 @@ fun ChatScreen(
                     )
                 }
 
-                // Lista de TODAS las preguntas disponibles (visible solo cuando está expandido)
                 if (isMenuExpanded) {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         color = Color(0xFFF1F8E9)
                     ) {
-                        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
                             Text(
                                 text = "Preguntas Frecuentes",
                                 color = Color(0xFF2E7D32),
@@ -214,23 +278,20 @@ fun ChatScreen(
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(bottom = 8.dp)
                             )
-                            // CAMBIO CLAVE: mostramos TODAS las preguntas de la lista recibida,
-                            // no una sola. La lista viene directamente de AppDatabase via ViewModel.
                             questions.forEach { question ->
                                 FaqMenuItem(
                                     question = question.questionText,
                                     onClick = {
-                                        // Agrega pregunta y respuesta al historial (no reemplaza)
-                                        chatHistory.add(ChatMessage(question.questionText, isUser = true))
-                                        chatHistory.add(ChatMessage(question.answerText, isUser = false))
-
-                                        // Colapsa el panel para ver el chat
+                                        chatHistory.add(
+                                            ChatMessage(question.questionText, isUser = true)
+                                        )
+                                        chatHistory.add(
+                                            ChatMessage(question.answerText, isUser = false)
+                                        )
                                         isMenuExpanded = false
-
-                                        // Hace scroll al último mensaje
                                         coroutineScope.launch {
                                             listState.animateScrollToItem(
-                                                index = listState.layoutInfo.totalItemsCount - 1
+                                                listState.layoutInfo.totalItemsCount - 1
                                             )
                                         }
                                     }
@@ -300,7 +361,7 @@ fun ChatBubble(text: String, isUser: Boolean) {
     }
 }
 
-@Preview(showBackground = true)
+@ComposePreview(showBackground = true)
 @Composable
 fun ChatScreenPreview() {
     ChatScreen(
@@ -308,8 +369,9 @@ fun ChatScreenPreview() {
         questions = listOf(
             Question(1, 1, "¿Cómo funciona la práctica?", "La práctica consiste en escanear..."),
             Question(2, 1, "¿Dónde encuentro los materiales?", "Los materiales están en el locker..."),
-            Question(3, 1, "¿Cuál es el objetivo de esta estación?", "El objetivo es identificar...")
+            Question(3, 1, "¿Cuál es el objetivo?", "El objetivo es identificar...")
         ),
+        initialQuestion = null,
         onBack = {},
         onHelp = {}
     )
