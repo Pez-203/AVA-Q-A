@@ -62,7 +62,7 @@ class MainActivity : AppCompatActivity() {
     @Volatile
     private var isProcessing = false
 
-    // Estados: null → "loading" → "ar" → "argyro" → "chat"
+    // Estados: null → "loading" → "argyro" → "chat"
     private var composeScreenState by mutableStateOf<String?>(null)
     private var currentData: CategoryWithQuestions? = null
     private var showExitDialog by mutableStateOf(false)
@@ -125,19 +125,6 @@ class MainActivity : AppCompatActivity() {
                             ).show()
                         }
                     )
-                }
-
-                // ── 2. Animación AR intro (ya existente) ──────────────────────
-                "ar" -> {
-                    if (data != null) {
-                        AROverlayScreen(
-                            categoryTitle     = data.category.title,
-                            onAnimationFinished = {
-                                // Después del intro AR, va a la pantalla de giroscopio
-                                composeScreenState = "argyro"
-                            }
-                        )
-                    }
                 }
 
                 // ── 3. Selección AR con giroscopio ────────────────────────────
@@ -313,7 +300,7 @@ class MainActivity : AppCompatActivity() {
                 if (result != null) {
                     currentData         = result
                     preSelectedQuestion = null   // limpiar selección previa
-                    composeScreenState  = "ar"   // intro AR → argyro → chat
+                    composeScreenState  = "argyro"   // va directo a la pantalla de giroscopio
                 } else {
                     Toast.makeText(
                         this@MainActivity,
@@ -343,7 +330,6 @@ class MainActivity : AppCompatActivity() {
     override fun onBackPressed() {
         when (composeScreenState) {
             "argyro" -> resetToInitial()
-            "ar"     -> resetToInitial()
             "chat"   -> resetToInitial()
             else     -> if (binding.cameraPreview.visibility == View.VISIBLE) {
                 stopCamera()
