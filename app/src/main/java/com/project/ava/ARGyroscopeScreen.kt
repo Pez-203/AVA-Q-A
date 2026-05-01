@@ -9,6 +9,8 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -22,19 +24,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.layout.boundsInRoot
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -43,7 +43,34 @@ import com.project.ava.data.Question
 import kotlinx.coroutines.delay
 import kotlin.math.*
 
-// ── Giroscopio: parallax suave ±18dp ─────────────────────────────────────────
+// Offsets de tarjetas relativos al ancla del grupo (dp)
+private val Q_OFFSETS = listOf(
+    Offset(-87f, -200f), Offset(87f, -200f),
+    Offset(-87f, -120f), Offset(87f, -120f),
+    Offset(-87f,  -40f), Offset(87f,  -40f),
+    Offset(-87f,   40f), Offset(87f,   40f),
+    Offset(-87f,  120f), Offset(87f,  120f),
+    Offset(-87f,  200f), Offset(87f,  200f),
+)
+
+// Ancla de pantalla para cada grupo QR (dp desde el centro de pantalla)
+private val GROUP_ANCHORS = listOf(
+    Offset(  0f,    0f),
+    Offset(-200f, -260f),
+    Offset( 200f, -260f),
+    Offset(-200f,  260f),
+    Offset( 200f,  260f),
+)
+
+private fun qOffset(idx: Int): Offset =
+    if (idx < Q_OFFSETS.size) Q_OFFSETS[idx]
+    else Offset(0f, 280f + (idx - Q_OFFSETS.size) * 85f)
+
+private fun groupAnchor(gIdx: Int): Offset =
+    if (gIdx < GROUP_ANCHORS.size) GROUP_ANCHORS[gIdx]
+    else Offset(0f, 360f * (gIdx - GROUP_ANCHORS.size + 1))
+
+// ── Giroscopio: parallax del mundo ───────────────────────────────────────────
 @Composable
 private fun rememberParallaxOffset(): State<Offset> {
     val context = LocalContext.current
@@ -54,57 +81,47 @@ private fun rememberParallaxOffset(): State<Offset> {
         val sensor = sm.getDefaultSensor(Sensor.TYPE_GAME_ROTATION_VECTOR)
             ?: sm.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
 
-        // Usamos posición absoluta pero con referencia re-calibrable
         var refPitch   = Float.NaN
         var refAzimuth = Float.NaN
-        val sens = 30f      // ← aumentado
-        val max  = 300f     // ← sin límite práctico
+        val sens = 30f
+        val max  = 300f
 
         val listener = object : SensorEventListener {
             private val rm    = FloatArray(9)
             private val outRm = FloatArray(9)
             private val ori   = FloatArray(3)
-
             private var smoothAz = 0f
             private var smoothPi = 0f
-            private val alpha    = 0.3f   // ← más reactivo
+            private val alpha    = 0.3f
             private var first    = true
             private var count    = 0
 
             override fun onSensorChanged(e: SensorEvent) {
                 if (e.values.size < 3) return
                 SensorManager.getRotationMatrixFromVector(rm, e.values)
-                SensorManager.remapCoordinateSystem(
-                    rm, SensorManager.AXIS_X, SensorManager.AXIS_Z, outRm
-                )
+                SensorManager.remapCoordinateSystem(rm, SensorManager.AXIS_X, SensorManager.AXIS_Z, outRm)
                 SensorManager.getOrientation(outRm, ori)
 
                 val az = Math.toDegrees(ori[0].toDouble()).toFloat()
                 val pi = Math.toDegrees(ori[1].toDouble()).toFloat()
 
-                if (first) {
-                    smoothAz = az; smoothPi = pi; first = false
-                } else {
-                    // Interpolación circular para azimuth (evita salto en ±180)
+                if (first) { smoothAz = az; smoothPi = pi; first = false }
+                else {
                     var diff = az - smoothAz
-                    if (diff > 180)  diff -= 360
+                    if (diff > 180) diff -= 360
                     if (diff < -180) diff += 360
                     smoothAz += alpha * diff
                     smoothPi += alpha * (pi - smoothPi)
                 }
 
-                // Esperar 5 muestras (antes 10) para calibrar más rápido
                 if (count < 5) {
                     count++
-                    if (count == 5) {
-                        refAzimuth = smoothAz
-                        refPitch   = smoothPi
-                    }
+                    if (count == 5) { refAzimuth = smoothAz; refPitch = smoothPi }
                     return
                 }
 
                 var dAz = smoothAz - refAzimuth
-                if (dAz > 180)  dAz -= 360
+                if (dAz > 180) dAz -= 360
                 if (dAz < -180) dAz += 360
                 val dPi = smoothPi - refPitch
 
@@ -114,120 +131,101 @@ private fun rememberParallaxOffset(): State<Offset> {
             }
             override fun onAccuracyChanged(s: Sensor?, a: Int) {}
         }
-        sensor?.let {
-            sm.registerListener(listener, it, SensorManager.SENSOR_DELAY_FASTEST) // ← FASTEST en vez de GAME
-        }
+        sensor?.let { sm.registerListener(listener, it, SensorManager.SENSOR_DELAY_FASTEST) }
         onDispose { sm.unregisterListener(listener) }
     }
     return raw
 }
-//
-// ── Pantalla AR con cuadrícula fija ───────────────────────────────────────────
+
+// ── Pantalla AR: retícula fija, tarjetas ancladas al QR ──────────────────────
 @Composable
 fun ARGyroscopeScreen(
     questions: List<Question>,
     onQuestionSelected: (Question) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    additionalGroups: List<List<Question>> = emptyList()
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
-    val context        = LocalContext.current
     val parallaxRaw    by rememberParallaxOffset()
 
-    // Parallax animado suavemente
-    val px by animateFloatAsState(
-        targetValue = parallaxRaw.x,
-        animationSpec = spring(stiffness = Spring.StiffnessVeryLow), // ← más suave/rápido
-        label = "px"
-    )
-    val py by animateFloatAsState(
-        targetValue = parallaxRaw.y,
-        animationSpec = spring(stiffness = Spring.StiffnessVeryLow),
-        label = "py"
-    )
+    // wx/wy: desplazamiento del mundo en dp.
+    // Al girar a la derecha (wx > 0), el mundo se desplaza a la izquierda en pantalla.
+    val wx by animateFloatAsState(parallaxRaw.x, spring(stiffness = Spring.StiffnessVeryLow), label = "wx")
+    val wy by animateFloatAsState(parallaxRaw.y, spring(stiffness = Spring.StiffnessVeryLow), label = "wy")
 
-    val densityVal = context.resources.displayMetrics.density
-
-    var hoveredIndex     by remember { mutableStateOf(-1) }
-    var hoverProgress    by remember { mutableStateOf(0f) }
-    var selectedQuestion by remember { mutableStateOf<Question?>(null) }
-    var showAnswer       by remember { mutableStateOf(false) }
-
-    // Posiciones en pantalla de cada chip (para detectar hover con el retículo)
-    val chipCenters = remember { mutableStateMapOf<Int, Offset>() }
-    // Centro de pantalla (retículo) — se calcula una vez con BoxWithConstraints
-    var screenCenter by remember { mutableStateOf(Offset.Zero) }
-
-    // Detectar qué chip está bajo el retículo
-    // Reemplaza el LaunchedEffect de hover detection:
-    LaunchedEffect(chipCenters.toMap(), screenCenter, px, py) {
-        if (screenCenter == Offset.Zero || showAnswer) return@LaunchedEffect
-
-        val margin = 60.dp.value * densityVal
-
-        // 👇 Misma fórmula que en el Canvas — posición real del retículo en pantalla
-        val pointerX = (screenCenter.x + px * densityVal)
-            .coerceIn(margin, screenCenter.x * 2 - margin)
-        val pointerY = (screenCenter.y + py * densityVal)
-            .coerceIn(margin, screenCenter.y * 2 - margin)
-        val pointerPos = Offset(pointerX, pointerY)
-
-        var closest = -1
-        var minDist = Float.MAX_VALUE
-
-        chipCenters.forEach { (idx, center) ->
-            val dist = sqrt(
-                (center.x - pointerPos.x).pow(2) +
-                        (center.y - pointerPos.y).pow(2)
-            )
-            if (dist < minDist) { minDist = dist; closest = idx }
+    val allGroups: List<List<Question>> = remember(questions, additionalGroups) {
+        buildList {
+            if (questions.isNotEmpty()) add(questions)
+            addAll(additionalGroups)
         }
-
-        val threshold = 80.dp.value * densityVal
-        hoveredIndex = if (minDist < threshold) closest else -1
     }
 
-    // Timer de selección 1.5s
-    LaunchedEffect(hoveredIndex) {
-        if (hoveredIndex >= 0 && !showAnswer) {
+    var hoveredGroup  by remember { mutableStateOf(-1) }
+    var hoveredCard   by remember { mutableStateOf(-1) }
+    var expandedGroup by remember { mutableStateOf(-1) }
+    var expandedCard  by remember { mutableStateOf(-1) }
+    var hoverProgress by remember { mutableStateOf(0f) }
+
+    // Detección de hover: la retícula está fija en (0,0); las tarjetas se mueven con el mundo.
+    // Una tarjeta está bajo la retícula cuando su posición en el mundo ≈ (wx, wy).
+    LaunchedEffect(wx, wy, expandedGroup) {
+        if (expandedGroup >= 0) { hoveredGroup = -1; hoveredCard = -1; return@LaunchedEffect }
+
+        var bestGroup = -1; var bestCard = -1; var minDist = Float.MAX_VALUE
+
+        allGroups.forEachIndexed { gIdx, group ->
+            val anchor = groupAnchor(gIdx)
+            group.indices.forEach { cIdx ->
+                val off = qOffset(cIdx)
+                val dx  = (anchor.x + off.x) - wx
+                val dy  = (anchor.y + off.y) - wy
+                val d   = sqrt(dx * dx + dy * dy)
+                if (d < minDist) { minDist = d; bestGroup = gIdx; bestCard = cIdx }
+            }
+        }
+        if (minDist < 68f) { hoveredGroup = bestGroup; hoveredCard = bestCard }
+        else { hoveredGroup = -1; hoveredCard = -1 }
+    }
+
+    // Temporizador de selección 1.5s
+    LaunchedEffect(hoveredGroup, hoveredCard) {
+        if (hoveredGroup >= 0 && hoveredCard >= 0 && expandedGroup < 0) {
             hoverProgress = 0f
-            val steps = 60; val stepMs = 1500L / steps
+            val steps = 60; val ms = 1500L / steps
             repeat(steps) { i ->
-                delay(stepMs)
-                if (hoveredIndex < 0) return@LaunchedEffect
+                delay(ms)
+                if (hoveredGroup < 0) return@LaunchedEffect
                 hoverProgress = (i + 1f) / steps
             }
-            if (hoveredIndex >= 0) {
-                selectedQuestion = questions[hoveredIndex]
-                showAnswer       = true
-                hoveredIndex     = -1
-                hoverProgress    = 0f
+            if (hoveredGroup >= 0 && hoveredCard >= 0) {
+                expandedGroup = hoveredGroup
+                expandedCard  = hoveredCard
+                hoveredGroup  = -1
+                hoveredCard   = -1
+                hoverProgress = 0f
             }
         } else {
             hoverProgress = 0f
         }
     }
 
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val w = constraints.maxWidth.toFloat()
-        val h = constraints.maxHeight.toFloat()
-
-        // Guardar el centro de pantalla (posición del retículo)
-        LaunchedEffect(w, h) {
-            screenCenter = Offset(w / 2f, h / 2f)
-        }
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val density    = LocalDensity.current
+        val swPx       = constraints.maxWidth.toFloat()
+        val shPx       = constraints.maxHeight.toFloat()
+        val swDp: Dp   = with(density) { swPx.toDp() }
+        val shDp: Dp   = with(density) { shPx.toDp() }
+        val densityVal = density.density
 
         // ── CAPA 1: Cámara ────────────────────────────────────────────────────
         AndroidView(
             modifier = Modifier.fillMaxSize(),
             factory  = { ctx ->
-                val pv = PreviewView(ctx).apply {
-                    scaleType = PreviewView.ScaleType.FILL_CENTER
-                }
+                val pv = PreviewView(ctx).apply { scaleType = PreviewView.ScaleType.FILL_CENTER }
                 ProcessCameraProvider.getInstance(ctx).addListener({
                     try {
                         val prov = ProcessCameraProvider.getInstance(ctx).get()
-                        val prev = Preview.Builder().build()
-                            .also { it.surfaceProvider = pv.surfaceProvider }
+                        val prev = Preview.Builder().build().also { it.surfaceProvider = pv.surfaceProvider }
                         prov.unbindAll()
                         prov.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, prev)
                     } catch (_: Exception) {}
@@ -237,198 +235,130 @@ fun ARGyroscopeScreen(
         )
 
         // ── CAPA 2: Velo ──────────────────────────────────────────────────────
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color(0xFF060F1C).copy(alpha = 0.52f))
-        )
+        Box(Modifier.fillMaxSize().background(Color(0xFF060F1C).copy(alpha = 0.45f)))
 
-        // ── CAPA 3: Cuadrícula de preguntas (estática) ───────────────────────
-        if (!showAnswer) {
-            Box(
-                modifier = Modifier.fillMaxSize()
-            ) {
-                // Dividir preguntas: mitad arriba del retículo, mitad abajo
-                val half  = (questions.size + 1) / 2
-                val top   = questions.subList(0, half)
-                val bot   = questions.subList(half, questions.size)
+        // ── CAPA 3: Tarjetas ancladas al mundo (se mueven opuesto a la cámara) ─
+        val cardW     = 168.dp
+        val baseCardH = 74.dp
 
-                // ── Zona superior ─────────────────────────────────────────────
-                Column(
+        allGroups.forEachIndexed { gIdx, group ->
+            val anchor = groupAnchor(gIdx)
+            group.forEachIndexed { cIdx, question ->
+                val off = qOffset(cIdx)
+
+                // Posición en pantalla: se aleja del centro cuando la cámara gira hacia ellas
+                val cardCX: Dp = swDp / 2 + (anchor.x + off.x - wx).dp
+                val cardCY: Dp = shDp / 2 + (anchor.y + off.y - wy).dp
+
+                val isHovered  = hoveredGroup  == gIdx && hoveredCard  == cIdx
+                val isExpanded = expandedGroup == gIdx && expandedCard == cIdx
+                val dimmed     = expandedGroup >= 0 && !isExpanded
+
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.TopCenter)
-                        .padding(top = 88.dp, start = 14.dp, end = 14.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                        .absoluteOffset(x = cardCX - cardW / 2, y = cardCY - baseCardH / 2)
+                        .width(cardW)
+                        .alpha(if (dimmed) 0.28f else 1f)
                 ) {
-                    top.chunked(2).forEach { row ->
-                        Row(
-                            modifier              = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            row.forEach { q ->
-                                val idx       = questions.indexOf(q)
-                                val isHovered = hoveredIndex == idx
-                                ChipItem(
-                                    question  = q,
-                                    isHovered = isHovered,
-                                    modifier  = Modifier
-                                        .weight(1f)
-                                        .onGloballyPositioned { coords ->
-                                            val b = coords.boundsInRoot()
-                                            chipCenters[idx] = Offset(
-                                                b.left + b.width / 2f,
-                                                b.top  + b.height / 2f
-                                            )
-                                        }
-                                )
-                            }
-                            if (row.size == 1) Spacer(Modifier.weight(1f))
-                        }
-                    }
-                }
-
-                // ── Zona inferior ─────────────────────────────────────────────
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 72.dp, start = 14.dp, end = 14.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    bot.chunked(2).forEach { row ->
-                        Row(
-                            modifier              = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            row.forEach { q ->
-                                val idx       = questions.indexOf(q)
-                                val isHovered = hoveredIndex == idx
-                                ChipItem(
-                                    question  = q,
-                                    isHovered = isHovered,
-                                    modifier  = Modifier
-                                        .weight(1f)
-                                        .onGloballyPositioned { coords ->
-                                            val b = coords.boundsInRoot()
-                                            chipCenters[idx] = Offset(
-                                                b.left + b.width / 2f,
-                                                b.top  + b.height / 2f
-                                            )
-                                        }
-                                )
-                            }
-                            if (row.size == 1) Spacer(Modifier.weight(1f))
-                        }
-                    }
+                    ARQuestionCard(
+                        question      = question,
+                        isHovered     = isHovered,
+                        isExpanded    = isExpanded,
+                        hoverProgress = if (isHovered) hoverProgress else 0f,
+                        onCollapse    = { expandedGroup = -1; expandedCard = -1 },
+                        onSendToChat  = { onQuestionSelected(question) }
+                    )
                 }
             }
         }
 
-        // ── CAPA 4: Mano como puntero ────────────────────────────────────────
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val offsetX  = px * densityVal
-            val offsetY  = py * densityVal
-            val margin   = 60.dp.toPx()
-            val cx = (size.width  / 2f + offsetX).coerceIn(margin, size.width  - margin)
-            val cy = (size.height / 2f + offsetY).coerceIn(margin, size.height - margin)
-            val isAiming = hoveredIndex >= 0 && !showAnswer
+        // ── CAPA 4: Canvas (anclas QR + líneas + retícula FIJA) ──────────────
+        Canvas(Modifier.fillMaxSize()) {
+            val centerX = swPx / 2f
+            val centerY = shPx / 2f
 
-            drawHandCursor(tip = Offset(cx, cy), color = Color(0xFF2ECC71), isAiming = isAiming)
+            allGroups.forEachIndexed { gIdx, group ->
+                val anchor = groupAnchor(gIdx)
+                // Ancla del QR en pantalla: se desplaza opuesto al movimiento de cámara
+                val ancX = centerX + (anchor.x - wx) * densityVal
+                val ancY = centerY + (anchor.y - wy) * densityVal
 
-            // Arco de carga alrededor de la mano (tipo Kinect)
-            if (isAiming && hoverProgress > 0f) {
-                val arcR   = 40.dp.toPx()
-                val palmCx = cx + 6.dp.toPx()
-                val palmCy = cy + 22.dp.toPx()
-                drawArc(
-                    color      = Color(0xFF4CAF50),
-                    startAngle = -90f,
-                    sweepAngle = 360f * hoverProgress,
-                    useCenter  = false,
-                    topLeft    = Offset(palmCx - arcR, palmCy - arcR),
-                    size       = Size(arcR * 2f, arcR * 2f),
-                    style      = Stroke(width = 4.5f.dp.toPx(), cap = StrokeCap.Round)
+                // Líneas ancla → tarjetas
+                if (expandedGroup < 0) {
+                    group.indices.forEach { cIdx ->
+                        val off   = qOffset(cIdx)
+                        val cardX = centerX + (anchor.x + off.x - wx) * densityVal
+                        val cardY = centerY + (anchor.y + off.y - wy) * densityVal
+                        drawLine(
+                            color       = Color(0xFF2ECC71).copy(alpha = 0.14f),
+                            start       = Offset(ancX, ancY),
+                            end         = Offset(cardX, cardY),
+                            strokeWidth = 1.dp.toPx()
+                        )
+                    }
+                }
+
+                // Marcador QR (esquinas visor AR) — se mueve con el mundo
+                val qrS    = 22.dp.toPx()
+                val qrC    = 7.dp.toPx()
+                val swQ    = 2.dp.toPx()
+                val qAlpha = if (expandedGroup < 0) 0.80f else 0.22f
+                val qCol   = Color(0xFF2ECC71).copy(alpha = qAlpha)
+                drawRect(
+                    color   = Color(0xFF2ECC71).copy(alpha = qAlpha * 0.4f),
+                    topLeft = Offset(ancX - qrS / 2, ancY - qrS / 2),
+                    size    = Size(qrS, qrS),
+                    style   = Stroke(1.dp.toPx())
                 )
+                val l = ancX - qrS / 2; val r = ancX + qrS / 2
+                val t = ancY - qrS / 2; val b = ancY + qrS / 2
+                drawLine(qCol, Offset(l, t + qrC), Offset(l, t), swQ)
+                drawLine(qCol, Offset(l, t), Offset(l + qrC, t), swQ)
+                drawLine(qCol, Offset(r - qrC, t), Offset(r, t), swQ)
+                drawLine(qCol, Offset(r, t), Offset(r, t + qrC), swQ)
+                drawLine(qCol, Offset(l, b - qrC), Offset(l, b), swQ)
+                drawLine(qCol, Offset(l, b), Offset(l + qrC, b), swQ)
+                drawLine(qCol, Offset(r - qrC, b), Offset(r, b), swQ)
+                drawLine(qCol, Offset(r, b - qrC), Offset(r, b), swQ)
             }
-        }
 
-        // ── CAPA 5: Panel de respuesta ────────────────────────────────────────
-        if (showAnswer && selectedQuestion != null) {
-            val a by animateFloatAsState(1f, tween(350), label = "a")
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color(0xFF030A14).copy(alpha = 0.88f))
-                    .alpha(a),
-                contentAlignment = Alignment.Center
-            ) {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(0.92f).wrapContentHeight(),
-                    shape    = RoundedCornerShape(20.dp),
-                    color    = Color(0xFF0D1F35),
-                    border   = androidx.compose.foundation.BorderStroke(1.5f.dp, Color(0xFF2ECC71))
-                ) {
-                    Column(
-                        modifier = Modifier.padding(24.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        Text(
-                            selectedQuestion!!.questionText,
-                            color = Color(0xFF4CAF50), fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold, lineHeight = 21.sp
-                        )
-                        Box(Modifier.fillMaxWidth().height(1.dp)
-                            .background(Color(0xFF2ECC71).copy(alpha = 0.25f)))
-                        Text(
-                            selectedQuestion!!.answerText,
-                            color = Color(0xFFECEFF1), fontSize = 13.sp, lineHeight = 19.sp
-                        )
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Surface(
-                                modifier = Modifier.weight(1f),
-                                shape    = RoundedCornerShape(10.dp),
-                                color    = Color(0xFF1A2E1A),
-                                border   = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF388E3C)),
-                                onClick  = { selectedQuestion = null; showAnswer = false }
-                            ) {
-                                Text(
-                                    text       = "Otra pregunta",
-                                    color      = Color(0xFF81C784),
-                                    fontSize   = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    textAlign  = TextAlign.Center,
-                                    modifier   = Modifier.padding(vertical = 12.dp)
-                                )
-                            }
-                            Surface(
-                                modifier = Modifier.weight(1f),
-                                shape    = RoundedCornerShape(10.dp),
-                                color    = Color(0xFF2E7D32),
-                                onClick  = { onQuestionSelected(selectedQuestion!!) }
-                            ) {
-                                Text(
-                                    text       = "Ver en chat",
-                                    color      = Color.White,
-                                    fontSize   = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    textAlign  = TextAlign.Center,
-                                    modifier   = Modifier.padding(vertical = 12.dp)
-                                )
-                            }
-                        }
-                    }
+            // Retícula FIJA en el centro de pantalla — nunca se mueve
+            if (expandedGroup < 0) {
+                val cx  = centerX; val cy = centerY
+                val rad = 22.dp.toPx()
+                val arm = 14.dp.toPx(); val gap = 7.dp.toPx()
+                val swC = 2.dp.toPx()
+                val isAiming = hoveredGroup >= 0
+                val crossCol = Color(0xFF2ECC71).copy(alpha = if (isAiming) 1f else 0.65f)
+
+                drawCircle(Color(0xFF2ECC71).copy(alpha = 0.08f), rad + 6.dp.toPx(), Offset(cx, cy))
+                drawCircle(crossCol, rad, Offset(cx, cy), style = Stroke(swC))
+                drawCircle(crossCol, 4.dp.toPx(), Offset(cx, cy))
+                drawLine(crossCol, Offset(cx - rad - arm - gap, cy), Offset(cx - rad - gap, cy), swC)
+                drawLine(crossCol, Offset(cx + rad + gap, cy), Offset(cx + rad + gap + arm, cy), swC)
+                drawLine(crossCol, Offset(cx, cy - rad - arm - gap), Offset(cx, cy - rad - gap), swC)
+                drawLine(crossCol, Offset(cx, cy + rad + gap), Offset(cx, cy + rad + gap + arm), swC)
+
+                if (isAiming && hoverProgress > 0f) {
+                    drawArc(
+                        color      = Color(0xFF4CAF50),
+                        startAngle = -90f,
+                        sweepAngle = 360f * hoverProgress,
+                        useCenter  = false,
+                        topLeft    = Offset(cx - rad, cy - rad),
+                        size       = Size(rad * 2f, rad * 2f),
+                        style      = Stroke(3.5f.dp.toPx(), cap = StrokeCap.Round)
+                    )
                 }
             }
         }
 
-        // ── CAPA 6: UI fija ───────────────────────────────────────────────────
+        // ── CAPA 5: Botón atrás ───────────────────────────────────────────────
         Surface(
             modifier = Modifier.padding(16.dp).align(Alignment.TopStart),
             shape    = RoundedCornerShape(10.dp),
             color    = Color(0xFF0D1F35).copy(alpha = 0.85f),
-            border   = androidx.compose.foundation.BorderStroke(
-                1.dp, Color(0xFF2ECC71).copy(alpha = 0.35f)),
+            border   = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF2ECC71).copy(alpha = 0.35f)),
             onClick  = onBack
         ) {
             androidx.compose.material3.Icon(
@@ -439,16 +369,16 @@ fun ARGyroscopeScreen(
             )
         }
 
-        if (!showAnswer) {
+        // ── CAPA 6: Instrucción ───────────────────────────────────────────────
+        if (expandedGroup < 0) {
             Surface(
                 modifier = Modifier.align(Alignment.TopCenter).padding(top = 20.dp),
                 shape    = RoundedCornerShape(20.dp),
                 color    = Color(0xFF0D1F35).copy(alpha = 0.85f),
-                border   = androidx.compose.foundation.BorderStroke(
-                    1.dp, Color(0xFF2ECC71).copy(alpha = 0.3f))
+                border   = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF2ECC71).copy(alpha = 0.30f))
             ) {
                 Text(
-                    "Apunta la mano · mantén 1.5s para seleccionar",
+                    "Mueve el celular para apuntar · 1.5s para seleccionar",
                     color    = Color(0xFF80CBC4),
                     fontSize = 11.sp,
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
@@ -458,134 +388,125 @@ fun ARGyroscopeScreen(
     }
 }
 
-// ── Cursor de mano (estilo Kinect) ────────────────────────────────────────────
-private fun DrawScope.drawHandCursor(tip: Offset, color: Color, isAiming: Boolean) {
-    val s  = density                           // px por dp
-    val fW = 11f * s;  val fH = 30f * s       // dedo índice: 11dp × 30dp
-    val pW = 32f * s;  val pH = 20f * s       // palma: 32dp × 20dp
-    val sw = 2.2f * s                          // grosor de trazo
-    val palmOffX = 6f * s                      // palma desplazada a la derecha del dedo
-
-    // Posiciones relativas al punto caliente (tip = punta del dedo)
-    val fingerLeft   = tip.x - fW / 2f
-    val fingerBottom = tip.y + fH
-    val palmCX   = tip.x + palmOffX
-    val palmLeft = palmCX - pW / 2f
-    val palmTop  = fingerBottom - 3f * s
-    val palmBot  = palmTop + pH
-
-    val outline = color.copy(alpha = if (isAiming) 1f else 0.78f)
-    val fill    = Color(0xFF0A1A2E).copy(alpha = 0.88f)
-    val glow    = color.copy(alpha = if (isAiming) 0.22f else 0.07f)
-
-    // Halo difuso detrás de la mano
-    drawOval(
-        color   = glow,
-        topLeft = Offset(palmLeft - 6f * s, tip.y - 4f * s),
-        size    = Size(pW + 12f * s, palmBot - tip.y + 8f * s)
-    )
-
-    // Dedos curvados (dibujados antes de la palma para que queden cubiertos en la base)
-    val bumpW = 9f * s
-    listOf(18f * s, 13f * s, 9f * s).forEachIndexed { i, bumpH ->
-        val bx = fingerLeft + fW + s + i * (bumpW + s)
-        val by = palmTop - bumpH
-        drawRoundRect(
-            color        = fill,
-            topLeft      = Offset(bx, by),
-            size         = Size(bumpW, bumpH + 3f * s),
-            cornerRadius = CornerRadius(bumpW / 2f)
-        )
-        drawRoundRect(
-            color        = outline,
-            topLeft      = Offset(bx, by),
-            size         = Size(bumpW, bumpH + 3f * s),
-            cornerRadius = CornerRadius(bumpW / 2f),
-            style        = Stroke(sw)
-        )
+// ── Tarjeta de pregunta expandible ───────────────────────────────────────────
+@Composable
+private fun ARQuestionCard(
+    question:      Question,
+    isHovered:     Boolean,
+    isExpanded:    Boolean,
+    hoverProgress: Float,
+    onCollapse:    () -> Unit,
+    onSendToChat:  () -> Unit
+) {
+    val borderW = if (isHovered || isExpanded) 2.dp else 1.dp
+    val bgColor = when {
+        isExpanded -> Color(0xFF0D2A12)
+        isHovered  -> Color(0xFF1B5E20)
+        else       -> Color(0xFF0D1F35).copy(alpha = 0.92f)
+    }
+    val borderColor = when {
+        isExpanded -> Color(0xFF4CAF50)
+        isHovered  -> Color(0xFF4CAF50)
+        else       -> Color(0xFF2ECC71).copy(alpha = 0.55f)
     }
 
-    // Palma
-    drawRoundRect(
-        color        = fill,
-        topLeft      = Offset(palmLeft, palmTop),
-        size         = Size(pW, pH),
-        cornerRadius = CornerRadius(5f * s)
-    )
-    drawRoundRect(
-        color        = outline,
-        topLeft      = Offset(palmLeft, palmTop),
-        size         = Size(pW, pH),
-        cornerRadius = CornerRadius(5f * s),
-        style        = Stroke(sw)
-    )
-
-    // Pulgar
-    val tW = 14f * s;  val tH = 11f * s
-    val tLeft = palmLeft - tW + 5f * s;  val tTop = palmTop + 6f * s
-    drawOval(color = fill,    topLeft = Offset(tLeft, tTop), size = Size(tW, tH))
-    drawOval(color = outline, topLeft = Offset(tLeft, tTop), size = Size(tW, tH), style = Stroke(sw))
-
-    // Dedo índice (encima de todo para que el trazo quede limpio)
-    drawRoundRect(
-        color        = fill,
-        topLeft      = Offset(fingerLeft, tip.y),
-        size         = Size(fW, fH),
-        cornerRadius = CornerRadius(fW / 2f)
-    )
-    drawRoundRect(
-        color        = outline,
-        topLeft      = Offset(fingerLeft, tip.y),
-        size         = Size(fW, fH),
-        cornerRadius = CornerRadius(fW / 2f),
-        style        = Stroke(sw)
-    )
-
-    // Punto caliente en la punta del dedo
-    drawCircle(color = outline, radius = 3f * s, center = tip)
-}
-
-// ── Chip de pregunta ──────────────────────────────────────────────────────────
-@Composable
-private fun ChipItem(
-    question:  Question,
-    isHovered: Boolean,
-    modifier:  Modifier = Modifier
-) {
-    val bgColor  = if (isHovered) Color(0xFF1B5E20) else Color(0xFF0D1F35).copy(alpha = 0.90f)
-    val border   = if (isHovered) Color(0xFF4CAF50) else Color(0xFF2ECC71).copy(alpha = 0.55f)
-    val dotColor = if (isHovered) Color(0xFF4CAF50) else Color(0xFF2ECC71).copy(alpha = 0.7f)
-    val txtColor = if (isHovered) Color.White       else Color(0xFFB0BEC5)
-    val weight   = if (isHovered) FontWeight.SemiBold else FontWeight.Normal
-
     Surface(
-        modifier = modifier,
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize(spring(stiffness = Spring.StiffnessMediumLow)),
         shape    = RoundedCornerShape(14.dp),
         color    = bgColor,
-        border   = androidx.compose.foundation.BorderStroke(
-            if (isHovered) 2.dp else 1.dp, border)
+        border   = androidx.compose.foundation.BorderStroke(borderW, borderColor)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 12.dp),
-            verticalAlignment     = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(7.dp)
-                    .clip(CircleShape)
-                    .background(dotColor)
-            )
-            Spacer(Modifier.width(8.dp))
-            Text(
-                text       = question.questionText,
-                color      = txtColor,
-                fontSize   = 11.sp,
-                fontWeight = weight,
-                lineHeight = 15.sp,
-                maxLines   = 3
-            )
+        Column(Modifier.padding(12.dp)) {
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier.size(9.dp).clip(CircleShape).background(borderColor)
+                )
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    text       = question.questionText,
+                    color      = if (isExpanded || isHovered) Color.White else Color(0xFFCFD8DC),
+                    fontSize   = 13.sp,
+                    fontWeight = if (isHovered || isExpanded) FontWeight.SemiBold else FontWeight.Normal,
+                    lineHeight = 18.sp,
+                    maxLines   = if (isExpanded) Int.MAX_VALUE else 3
+                )
+            }
+
+            if (!isExpanded && isHovered && hoverProgress > 0f) {
+                Spacer(Modifier.height(7.dp))
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .background(Color(0xFF2ECC71).copy(alpha = 0.22f))
+                ) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth(hoverProgress)
+                            .fillMaxHeight()
+                            .background(Color(0xFF4CAF50))
+                    )
+                }
+            }
+
+            AnimatedVisibility(visible = isExpanded) {
+                Column {
+                    Spacer(Modifier.height(10.dp))
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(Color(0xFF2ECC71).copy(alpha = 0.28f))
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        text       = question.answerText,
+                        color      = Color(0xFFECEFF1),
+                        fontSize   = 13.sp,
+                        lineHeight = 19.sp
+                    )
+                    Spacer(Modifier.height(14.dp))
+                    Row(
+                        modifier              = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            shape    = RoundedCornerShape(9.dp),
+                            color    = Color(0xFF1A2E1A),
+                            border   = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF388E3C)),
+                            onClick  = onCollapse
+                        ) {
+                            Text(
+                                text       = "Cerrar",
+                                color      = Color(0xFF81C784),
+                                fontSize   = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                textAlign  = TextAlign.Center,
+                                modifier   = Modifier.padding(vertical = 11.dp)
+                            )
+                        }
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            shape    = RoundedCornerShape(9.dp),
+                            color    = Color(0xFF2E7D32),
+                            onClick  = onSendToChat
+                        ) {
+                            Text(
+                                text       = "Ver en chat",
+                                color      = Color.White,
+                                fontSize   = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                textAlign  = TextAlign.Center,
+                                modifier   = Modifier.padding(vertical = 11.dp)
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
