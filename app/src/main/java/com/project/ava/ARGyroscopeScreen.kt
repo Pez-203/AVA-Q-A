@@ -44,100 +44,105 @@ import kotlinx.coroutines.delay
 import kotlin.math.*
 
 // Offsets de tarjetas relativos al ancla del grupo (dp)
+// ±80dp horizontal: con tarjeta de 175dp (87.5 semiancho), borde izquierdo queda
+// a 12.5dp del borde en pantalla de 360dp → visible incluso con ruido de sensor.
+// Filas de 80dp para que todas quepan verticalmente en pantallas típicas.
+// Columnas a ±93dp: con tarjeta de 175dp (87.5 semiancho), el gap entre columnas
+// es (93-87.5)*2 = 11dp → sin superposición. Filas cada 80dp.
 private val Q_OFFSETS = listOf(
-    Offset(-87f, -200f), Offset(87f, -200f),
-    Offset(-87f, -120f), Offset(87f, -120f),
-    Offset(-87f,  -40f), Offset(87f,  -40f),
-    Offset(-87f,   40f), Offset(87f,   40f),
-    Offset(-87f,  120f), Offset(87f,  120f),
-    Offset(-87f,  200f), Offset(87f,  200f),
+    Offset(-93f, -200f), Offset(93f, -200f),
+    Offset(-93f, -120f), Offset(93f, -120f),
+    Offset(-93f,  -40f), Offset(93f,  -40f),
+    Offset(-93f,   40f), Offset(93f,   40f),
+    Offset(-93f,  120f), Offset(93f,  120f),
+    Offset(-93f,  200f), Offset(93f,  200f),
 )
 
-// Ancla de pantalla para cada grupo QR (dp desde el centro de pantalla)
+// Ancla de pantalla para cada grupo QR (dp desde el centro)
 private val GROUP_ANCHORS = listOf(
-    Offset(  0f,    0f),
-    Offset(-200f, -260f),
-    Offset( 200f, -260f),
-    Offset(-200f,  260f),
-    Offset( 200f,  260f),
+    Offset(   0f,    0f),
+    Offset(-220f, -280f),
+    Offset( 220f, -280f),
+    Offset(-220f,  280f),
+    Offset( 220f,  280f),
 )
 
 private fun qOffset(idx: Int): Offset =
     if (idx < Q_OFFSETS.size) Q_OFFSETS[idx]
-    else Offset(0f, 280f + (idx - Q_OFFSETS.size) * 85f)
+    else Offset(0f, 300f + (idx - Q_OFFSETS.size) * 90f)
 
 private fun groupAnchor(gIdx: Int): Offset =
     if (gIdx < GROUP_ANCHORS.size) GROUP_ANCHORS[gIdx]
-    else Offset(0f, 360f * (gIdx - GROUP_ANCHORS.size + 1))
+    else Offset(0f, 380f * (gIdx - GROUP_ANCHORS.size + 1))
 
-// ── Giroscopio: parallax del mundo ───────────────────────────────────────────
+// ── Giroscopio: rastrea el desplazamiento del mundo desde el momento de apertura ─
 @Composable
 private fun rememberParallaxOffset(): State<Offset> {
     val context = LocalContext.current
-    val raw     = remember { mutableStateOf(Offset.Zero) }
+    val state   = remember { mutableStateOf(Offset.Zero) }
 
     DisposableEffect(Unit) {
         val sm     = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
         val sensor = sm.getDefaultSensor(Sensor.TYPE_GAME_ROTATION_VECTOR)
             ?: sm.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
 
-        var refPitch   = Float.NaN
-        var refAzimuth = Float.NaN
-        val sens = 30f
-        val max  = 300f
+        // 500 dp/rad → 10° ≈ 87dp (rango natural tipo Pokémon GO)
+        // asin está acotado a [-π/2, π/2], así que el rango máximo es ±785dp — sin clamp necesario
+        val sens = 500f
 
         val listener = object : SensorEventListener {
             private val rm    = FloatArray(9)
-            private val outRm = FloatArray(9)
-            private val ori   = FloatArray(3)
-            private var smoothAz = 0f
-            private var smoothPi = 0f
-            private val alpha    = 0.3f
-            private var first    = true
-            private var count    = 0
+            private val refRm = FloatArray(9)
+            private var smoothDx = 0f
+            private var smoothDy = 0f
+            private val alpha    = 0.2f
+            private var warmupCount = 0
+            private val WARMUP = 8  // ~160ms para estabilizar el sensor antes de capturar referencia
 
             override fun onSensorChanged(e: SensorEvent) {
                 if (e.values.size < 3) return
                 SensorManager.getRotationMatrixFromVector(rm, e.values)
-                SensorManager.remapCoordinateSystem(rm, SensorManager.AXIS_X, SensorManager.AXIS_Z, outRm)
-                SensorManager.getOrientation(outRm, ori)
 
-                val az = Math.toDegrees(ori[0].toDouble()).toFloat()
-                val pi = Math.toDegrees(ori[1].toDouble()).toFloat()
+                warmupCount++
+                if (warmupCount < WARMUP) return   // state.value permanece Offset.Zero
 
-                if (first) { smoothAz = az; smoothPi = pi; first = false }
-                else {
-                    var diff = az - smoothAz
-                    if (diff > 180) diff -= 360
-                    if (diff < -180) diff += 360
-                    smoothAz += alpha * diff
-                    smoothPi += alpha * (pi - smoothPi)
-                }
-
-                if (count < 5) {
-                    count++
-                    if (count == 5) { refAzimuth = smoothAz; refPitch = smoothPi }
+                if (warmupCount == WARMUP) {
+                    // Capturar la orientación estabilizada como referencia
+                    // No se usa remapCoordinateSystem — la comparación de matrices es
+                    // independiente del dispositivo: no importa cómo el fabricante
+                    // definió los ejes internos del sensor.
+                    rm.copyInto(refRm)
                     return
                 }
 
-                var dAz = smoothAz - refAzimuth
-                if (dAz > 180) dAz -= 360
-                if (dAz < -180) dAz += 360
-                val dPi = smoothPi - refPitch
+                // R_delta = R_ref^T × R_cur
+                // Solo se necesitan los elementos [2] y [5] de R_delta:
+                //   Rd[2] = suma_k(refRm[k*3+0] × rm[k*3+2]) → ángulo horizontal desde ref
+                //   Rd[5] = suma_k(refRm[k*3+1] × rm[k*3+2]) → ángulo vertical desde ref
+                // Derivación: rd2 ≈ sin(yaw_delta), rd5 ≈ sin(pitch_delta)
+                val rd2 = refRm[0]*rm[2] + refRm[3]*rm[5] + refRm[6]*rm[8]
+                val rd5 = refRm[1]*rm[2] + refRm[4]*rm[5] + refRm[7]*rm[8]
 
-                val dx = (dAz  * sens).coerceIn(-max, max)
-                val dy = (-dPi * sens).coerceIn(-max, max)
-                raw.value = Offset(dx, dy)
+                val targetDx =  asin(rd2.coerceIn(-1f, 1f)) * sens
+                // rd5 > 0 cuando la cámara sube → objetos deben bajar en pantalla
+                // → wy debe ser negativo → negar para que la dirección sea correcta
+                val targetDy = -asin(rd5.coerceIn(-1f, 1f)) * sens
+
+                smoothDx += alpha * (targetDx - smoothDx)
+                smoothDy += alpha * (targetDy - smoothDy)
+
+                state.value = Offset(smoothDx, smoothDy)
             }
             override fun onAccuracyChanged(s: Sensor?, a: Int) {}
         }
-        sensor?.let { sm.registerListener(listener, it, SensorManager.SENSOR_DELAY_FASTEST) }
+        // SENSOR_DELAY_GAME (~20ms) reduce CPU y ruido vs SENSOR_DELAY_FASTEST
+        sensor?.let { sm.registerListener(listener, it, SensorManager.SENSOR_DELAY_GAME) }
         onDispose { sm.unregisterListener(listener) }
     }
-    return raw
+    return state
 }
 
-// ── Pantalla AR: retícula fija, tarjetas ancladas al QR ──────────────────────
+// ── Pantalla AR ────────────────────────────────────────────────────────────────
 @Composable
 fun ARGyroscopeScreen(
     questions: List<Question>,
@@ -146,12 +151,12 @@ fun ARGyroscopeScreen(
     additionalGroups: List<List<Question>> = emptyList()
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
-    val parallaxRaw    by rememberParallaxOffset()
+    val parallaxState  = rememberParallaxOffset()
 
-    // wx/wy: desplazamiento del mundo en dp.
-    // Al girar a la derecha (wx > 0), el mundo se desplaza a la izquierda en pantalla.
-    val wx by animateFloatAsState(parallaxRaw.x, spring(stiffness = Spring.StiffnessVeryLow), label = "wx")
-    val wy by animateFloatAsState(parallaxRaw.y, spring(stiffness = Spring.StiffnessVeryLow), label = "wy")
+    // Sin spring: el suavizado del sensor (alpha=0.2) es suficiente.
+    // Agregar spring encima añadía ~450ms de lag extra — el causante de la "lentitud".
+    val wx = parallaxState.value.x
+    val wy = parallaxState.value.y
 
     val allGroups: List<List<Question>> = remember(questions, additionalGroups) {
         buildList {
@@ -160,48 +165,48 @@ fun ARGyroscopeScreen(
         }
     }
 
-    var hoveredGroup  by remember { mutableStateOf(-1) }
-    var hoveredCard   by remember { mutableStateOf(-1) }
     var expandedGroup by remember { mutableStateOf(-1) }
     var expandedCard  by remember { mutableStateOf(-1) }
     var hoverProgress by remember { mutableStateOf(0f) }
 
-    // Detección de hover: la retícula está fija en (0,0); las tarjetas se mueven con el mundo.
-    // Una tarjeta está bajo la retícula cuando su posición en el mundo ≈ (wx, wy).
-    LaunchedEffect(wx, wy, expandedGroup) {
-        if (expandedGroup >= 0) { hoveredGroup = -1; hoveredCard = -1; return@LaunchedEffect }
-
-        var bestGroup = -1; var bestCard = -1; var minDist = Float.MAX_VALUE
-
-        allGroups.forEachIndexed { gIdx, group ->
-            val anchor = groupAnchor(gIdx)
-            group.indices.forEach { cIdx ->
-                val off = qOffset(cIdx)
-                val dx  = (anchor.x + off.x) - wx
-                val dy  = (anchor.y + off.y) - wy
-                val d   = sqrt(dx * dx + dy * dy)
-                if (d < minDist) { minDist = d; bestGroup = gIdx; bestCard = cIdx }
+    // derivedStateOf: se recalcula solo cuando wx/wy o expandedGroup cambian de verdad,
+    // no relanza un LaunchedEffect en cada frame del sensor.
+    val hoveredPair by remember(allGroups) {
+        derivedStateOf {
+            if (expandedGroup >= 0) return@derivedStateOf -1 to -1
+            val curWx = parallaxState.value.x
+            val curWy = parallaxState.value.y
+            var bestGroup = -1; var bestCard = -1; var minDist = Float.MAX_VALUE
+            allGroups.forEachIndexed { gIdx, group ->
+                val anchor = groupAnchor(gIdx)
+                group.indices.forEach { cIdx ->
+                    val off = qOffset(cIdx)
+                    val dx  = (anchor.x + off.x) - curWx
+                    val dy  = (anchor.y + off.y) - curWy
+                    val d   = sqrt(dx * dx + dy * dy)
+                    if (d < minDist) { minDist = d; bestGroup = gIdx; bestCard = cIdx }
+                }
             }
+            if (minDist < 80f) bestGroup to bestCard else -1 to -1
         }
-        if (minDist < 68f) { hoveredGroup = bestGroup; hoveredCard = bestCard }
-        else { hoveredGroup = -1; hoveredCard = -1 }
     }
+    val hoveredGroup = hoveredPair.first
+    val hoveredCard  = hoveredPair.second
 
-    // Temporizador de selección 1.5s
-    LaunchedEffect(hoveredGroup, hoveredCard) {
-        if (hoveredGroup >= 0 && hoveredCard >= 0 && expandedGroup < 0) {
+    // Timer de selección: solo relanza cuando el hover realmente cambia (no en cada frame)
+    LaunchedEffect(hoveredPair) {
+        val (hg, hc) = hoveredPair
+        if (hg >= 0 && hc >= 0 && expandedGroup < 0) {
             hoverProgress = 0f
             val steps = 60; val ms = 1500L / steps
             repeat(steps) { i ->
                 delay(ms)
-                if (hoveredGroup < 0) return@LaunchedEffect
+                if (hoveredPair.first != hg || hoveredPair.second != hc) return@LaunchedEffect
                 hoverProgress = (i + 1f) / steps
             }
-            if (hoveredGroup >= 0 && hoveredCard >= 0) {
-                expandedGroup = hoveredGroup
-                expandedCard  = hoveredCard
-                hoveredGroup  = -1
-                hoveredCard   = -1
+            if (hoveredPair.first == hg && hoveredPair.second == hc) {
+                expandedGroup = hg
+                expandedCard  = hc
                 hoverProgress = 0f
             }
         } else {
@@ -235,22 +240,21 @@ fun ARGyroscopeScreen(
         )
 
         // ── CAPA 2: Velo ──────────────────────────────────────────────────────
-        Box(Modifier.fillMaxSize().background(Color(0xFF060F1C).copy(alpha = 0.45f)))
+        Box(Modifier.fillMaxSize().background(Color(0xFF060F1C).copy(alpha = 0.42f)))
 
-        // ── CAPA 3: Tarjetas ancladas al mundo (se mueven opuesto a la cámara) ─
-        val cardW     = 168.dp
-        val baseCardH = 74.dp
+        // ── CAPA 3: Tarjetas ancladas al mundo ────────────────────────────────
+        val cardW     = 175.dp
+        val baseCardH = 82.dp
 
         allGroups.forEachIndexed { gIdx, group ->
             val anchor = groupAnchor(gIdx)
             group.forEachIndexed { cIdx, question ->
                 val off = qOffset(cIdx)
 
-                // Posición en pantalla: se aleja del centro cuando la cámara gira hacia ellas
                 val cardCX: Dp = swDp / 2 + (anchor.x + off.x - wx).dp
                 val cardCY: Dp = shDp / 2 + (anchor.y + off.y - wy).dp
 
-                val isHovered  = hoveredGroup  == gIdx && hoveredCard  == cIdx
+                val isHovered  = hoveredGroup == gIdx && hoveredCard  == cIdx
                 val isExpanded = expandedGroup == gIdx && expandedCard == cIdx
                 val dimmed     = expandedGroup >= 0 && !isExpanded
 
@@ -258,7 +262,7 @@ fun ARGyroscopeScreen(
                     modifier = Modifier
                         .absoluteOffset(x = cardCX - cardW / 2, y = cardCY - baseCardH / 2)
                         .width(cardW)
-                        .alpha(if (dimmed) 0.28f else 1f)
+                        .alpha(if (dimmed) 0.25f else 1f)
                 ) {
                     ARQuestionCard(
                         question      = question,
@@ -272,25 +276,23 @@ fun ARGyroscopeScreen(
             }
         }
 
-        // ── CAPA 4: Canvas (anclas QR + líneas + retícula FIJA) ──────────────
+        // ── CAPA 4: Canvas (marcadores QR + líneas + retícula FIJA) ──────────
         Canvas(Modifier.fillMaxSize()) {
             val centerX = swPx / 2f
             val centerY = shPx / 2f
 
             allGroups.forEachIndexed { gIdx, group ->
                 val anchor = groupAnchor(gIdx)
-                // Ancla del QR en pantalla: se desplaza opuesto al movimiento de cámara
                 val ancX = centerX + (anchor.x - wx) * densityVal
                 val ancY = centerY + (anchor.y - wy) * densityVal
 
-                // Líneas ancla → tarjetas
                 if (expandedGroup < 0) {
                     group.indices.forEach { cIdx ->
                         val off   = qOffset(cIdx)
                         val cardX = centerX + (anchor.x + off.x - wx) * densityVal
                         val cardY = centerY + (anchor.y + off.y - wy) * densityVal
                         drawLine(
-                            color       = Color(0xFF2ECC71).copy(alpha = 0.14f),
+                            color       = Color(0xFF2ECC71).copy(alpha = 0.12f),
                             start       = Offset(ancX, ancY),
                             end         = Offset(cardX, cardY),
                             strokeWidth = 1.dp.toPx()
@@ -298,14 +300,13 @@ fun ARGyroscopeScreen(
                     }
                 }
 
-                // Marcador QR (esquinas visor AR) — se mueve con el mundo
-                val qrS    = 22.dp.toPx()
-                val qrC    = 7.dp.toPx()
-                val swQ    = 2.dp.toPx()
-                val qAlpha = if (expandedGroup < 0) 0.80f else 0.22f
+                val qrS    = 24.dp.toPx()
+                val qrC    = 8.dp.toPx()
+                val swQ    = 2.5f.dp.toPx()
+                val qAlpha = if (expandedGroup < 0) 0.85f else 0.20f
                 val qCol   = Color(0xFF2ECC71).copy(alpha = qAlpha)
                 drawRect(
-                    color   = Color(0xFF2ECC71).copy(alpha = qAlpha * 0.4f),
+                    color   = Color(0xFF2ECC71).copy(alpha = qAlpha * 0.35f),
                     topLeft = Offset(ancX - qrS / 2, ancY - qrS / 2),
                     size    = Size(qrS, qrS),
                     style   = Stroke(1.dp.toPx())
@@ -322,7 +323,7 @@ fun ARGyroscopeScreen(
                 drawLine(qCol, Offset(r, b - qrC), Offset(r, b), swQ)
             }
 
-            // Retícula FIJA en el centro de pantalla — nunca se mueve
+            // Retícula FIJA en el centro — nunca se mueve
             if (expandedGroup < 0) {
                 val cx  = centerX; val cy = centerY
                 val rad = 22.dp.toPx()
@@ -402,41 +403,41 @@ private fun ARQuestionCard(
     val bgColor = when {
         isExpanded -> Color(0xFF0D2A12)
         isHovered  -> Color(0xFF1B5E20)
-        else       -> Color(0xFF0D1F35).copy(alpha = 0.92f)
+        else       -> Color(0xFF0D1B2A).copy(alpha = 0.95f)
     }
     val borderColor = when {
         isExpanded -> Color(0xFF4CAF50)
         isHovered  -> Color(0xFF4CAF50)
-        else       -> Color(0xFF2ECC71).copy(alpha = 0.55f)
+        else       -> Color(0xFF2ECC71).copy(alpha = 0.60f)
     }
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .animateContentSize(spring(stiffness = Spring.StiffnessMediumLow)),
-        shape    = RoundedCornerShape(14.dp),
+        shape    = RoundedCornerShape(16.dp),
         color    = bgColor,
         border   = androidx.compose.foundation.BorderStroke(borderW, borderColor)
     ) {
-        Column(Modifier.padding(12.dp)) {
+        Column(Modifier.padding(14.dp)) {
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
-                    Modifier.size(9.dp).clip(CircleShape).background(borderColor)
+                    Modifier.size(10.dp).clip(CircleShape).background(borderColor)
                 )
                 Spacer(Modifier.width(10.dp))
                 Text(
                     text       = question.questionText,
-                    color      = if (isExpanded || isHovered) Color.White else Color(0xFFCFD8DC),
-                    fontSize   = 13.sp,
+                    color      = if (isExpanded || isHovered) Color.White else Color(0xFFDEE4EA),
+                    fontSize   = 15.sp,
                     fontWeight = if (isHovered || isExpanded) FontWeight.SemiBold else FontWeight.Normal,
-                    lineHeight = 18.sp,
+                    lineHeight = 20.sp,
                     maxLines   = if (isExpanded) Int.MAX_VALUE else 3
                 )
             }
 
             if (!isExpanded && isHovered && hoverProgress > 0f) {
-                Spacer(Modifier.height(7.dp))
+                Spacer(Modifier.height(8.dp))
                 Box(
                     Modifier
                         .fillMaxWidth()
@@ -454,28 +455,28 @@ private fun ARQuestionCard(
 
             AnimatedVisibility(visible = isExpanded) {
                 Column {
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(12.dp))
                     Box(
                         Modifier
                             .fillMaxWidth()
                             .height(1.dp)
                             .background(Color(0xFF2ECC71).copy(alpha = 0.28f))
                     )
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(12.dp))
                     Text(
                         text       = question.answerText,
                         color      = Color(0xFFECEFF1),
-                        fontSize   = 13.sp,
-                        lineHeight = 19.sp
+                        fontSize   = 14.sp,
+                        lineHeight = 21.sp
                     )
-                    Spacer(Modifier.height(14.dp))
+                    Spacer(Modifier.height(16.dp))
                     Row(
                         modifier              = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Surface(
                             modifier = Modifier.weight(1f),
-                            shape    = RoundedCornerShape(9.dp),
+                            shape    = RoundedCornerShape(10.dp),
                             color    = Color(0xFF1A2E1A),
                             border   = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF388E3C)),
                             onClick  = onCollapse
@@ -483,25 +484,25 @@ private fun ARQuestionCard(
                             Text(
                                 text       = "Cerrar",
                                 color      = Color(0xFF81C784),
-                                fontSize   = 13.sp,
+                                fontSize   = 14.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 textAlign  = TextAlign.Center,
-                                modifier   = Modifier.padding(vertical = 11.dp)
+                                modifier   = Modifier.padding(vertical = 12.dp)
                             )
                         }
                         Surface(
                             modifier = Modifier.weight(1f),
-                            shape    = RoundedCornerShape(9.dp),
+                            shape    = RoundedCornerShape(10.dp),
                             color    = Color(0xFF2E7D32),
                             onClick  = onSendToChat
                         ) {
                             Text(
                                 text       = "Ver en chat",
                                 color      = Color.White,
-                                fontSize   = 13.sp,
+                                fontSize   = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 textAlign  = TextAlign.Center,
-                                modifier   = Modifier.padding(vertical = 11.dp)
+                                modifier   = Modifier.padding(vertical = 12.dp)
                             )
                         }
                     }
