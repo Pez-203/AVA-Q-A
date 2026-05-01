@@ -12,11 +12,15 @@ import androidx.camera.view.PreviewView
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.*
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.layout.ContentScale
@@ -47,18 +51,22 @@ import com.project.ava.data.Question
 import kotlinx.coroutines.delay
 import kotlin.math.*
 
-// Offsets de tarjetas relativos al ancla del grupo (dp)
-// Columnas a ±135dp para dejar 95dp de hueco central al avatar (80dp diámetro).
-// Semiancho de tarjeta 87.5dp → borde interior en ±47.5dp (7.5dp de margen vs avatar).
-// Borde exterior en ±222.5dp: ~42dp fuera de pantalla de 360dp — correcto en AR.
-// Filas cada 80dp, rango vertical ±200dp.
+// Hexágono plano (flat-top) alrededor del avatar.
+// Anillo interior R=230dp: vértices a 0°,60°,120°,180°,240°,300°.
+//   Las 4 tarjetas diagonales (x=±115) quedan ~22dp fuera del borde en 360dp de pantalla.
+//   Las 2 laterales (x=±230) requieren giro; correcto en AR.
+//   Gap mínimo entre cajas (175×82dp) con texto de 3 líneas: ≥91dp — sin solapamiento.
+// Anillo exterior R=370dp: hexágono punteado (vértices a ±30°,±90°,±150°), desfasado 30°.
+//   Sin solapamiento verificado par a par (ninguna caja Y se superpone con la vecina).
 private val Q_OFFSETS = listOf(
-    Offset(-135f, -200f), Offset(135f, -200f),
-    Offset(-135f, -120f), Offset(135f, -120f),
-    Offset(-135f,  -40f), Offset(135f,  -40f),
-    Offset(-135f,   40f), Offset(135f,   40f),
-    Offset(-135f,  120f), Offset(135f,  120f),
-    Offset(-135f,  200f), Offset(135f,  200f),
+    // interior (R=230) — derechas primero, sentido horario
+    Offset( 115f, -199f), Offset( 230f,    0f),
+    Offset( 115f,  199f), Offset(-115f,  199f),
+    Offset(-230f,    0f), Offset(-115f, -199f),
+    // exterior (R=370, +30°) — arriba primero, sentido horario
+    Offset(   0f, -370f), Offset( 320f, -185f),
+    Offset( 320f,  185f), Offset(   0f,  370f),
+    Offset(-320f,  185f), Offset(-320f, -185f),
 )
 
 // Ancla de pantalla para cada grupo QR (dp desde el centro)
@@ -232,6 +240,11 @@ fun ARGyroscopeScreen(
         }
     }
 
+    // Preserva la pregunta durante el fade-out del overlay
+    var lastFocusedQ by remember { mutableStateOf<Question?>(null) }
+    if (expandedGroup >= 0 && expandedCard >= 0)
+        allGroups.getOrNull(expandedGroup)?.getOrNull(expandedCard)?.let { lastFocusedQ = it }
+
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val density    = LocalDensity.current
         val swPx       = constraints.maxWidth.toFloat()
@@ -274,13 +287,13 @@ fun ARGyroscopeScreen(
 
                 val isHovered  = hoveredGroup == gIdx && hoveredCard  == cIdx
                 val isExpanded = expandedGroup == gIdx && expandedCard == cIdx
-                val dimmed     = expandedGroup >= 0 && !isExpanded
+                val dimmed     = expandedGroup >= 0
 
                 Box(
                     modifier = Modifier
                         .absoluteOffset(x = cardCX - cardW / 2, y = cardCY - baseCardH / 2)
                         .width(cardW)
-                        .alpha(if (dimmed) 0.25f else 1f)
+                        .alpha(if (dimmed) 0f else 1f)
                 ) {
                     ARQuestionCard(
                         question      = question,
@@ -295,13 +308,15 @@ fun ARGyroscopeScreen(
         }
 
         // ── CAPA 3.5: Avatar anclado al mundo (mismo sistema que las tarjetas) ──
-        val avSize = 80.dp
+        val avSize = 150.dp
         allGroups.indices.forEach { gIdx ->
             val anchor = groupAnchor(gIdx)
             val avCX = swDp / 2 + (anchor.x - wx).dp
             val avCY = shDp / 2 + (anchor.y - wy).dp
             Box(
-                modifier = Modifier.absoluteOffset(x = avCX - avSize / 2, y = avCY - avSize / 2)
+                modifier = Modifier
+                    .absoluteOffset(x = avCX - avSize / 2, y = avCY - avSize / 2)
+                    .alpha(if (expandedGroup >= 0) 0f else 1f)
             ) {
                 ARAvatar(imageRes = avatarRes, size = avSize)
             }
@@ -417,38 +432,161 @@ fun ARGyroscopeScreen(
                 )
             }
         }
+
+        // ── CAPA 7: Modo enfoque – overlay fijo en pantalla ──────────────────
+        AnimatedVisibility(
+            visible = expandedGroup >= 0,
+            enter   = fadeIn(animationSpec  = tween(280)),
+            exit    = fadeOut(animationSpec = tween(200))
+        ) {
+            lastFocusedQ?.let { q ->
+                val overlayAvatarRes = when (explainIdx) {
+                    0    -> R.drawable.ava_explaining1
+                    1    -> R.drawable.ava_explaining2
+                    2    -> R.drawable.ava_explaining3
+                    else -> R.drawable.ava_explaining4
+                }
+                Box(Modifier.fillMaxSize()) {
+                    // Fondo opaco sobre la cámara
+                    Box(Modifier.fillMaxSize().background(Color(0xFF050D1A).copy(alpha = 0.84f)))
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(start = 16.dp, end = 16.dp, top = 72.dp, bottom = 24.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        // ── Izquierda: AVA explicando ──────────────────────
+                        ARAvatar(imageRes = overlayAvatarRes, size = 110.dp)
+
+                        Spacer(Modifier.width(14.dp))
+
+                        // ── Derecha: pregunta + respuesta + botones ─────────
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .verticalScroll(rememberScrollState())
+                        ) {
+                            // Pregunta
+                            Surface(
+                                shape  = RoundedCornerShape(16.dp),
+                                color  = Color(0xFF0D1B2A).copy(alpha = 0.96f),
+                                border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFF4CAF50))
+                            ) {
+                                Text(
+                                    text       = q.questionText,
+                                    color      = Color.White,
+                                    fontSize   = 16.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    lineHeight = 23.sp,
+                                    modifier   = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)
+                                )
+                            }
+
+                            Spacer(Modifier.height(12.dp))
+
+                            // Respuesta
+                            Surface(
+                                shape  = RoundedCornerShape(16.dp),
+                                color  = Color(0xFF0A1E0A).copy(alpha = 0.96f),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF2ECC71).copy(alpha = 0.45f))
+                            ) {
+                                Text(
+                                    text       = q.answerText,
+                                    color      = Color(0xFFDCE8DC),
+                                    fontSize   = 14.sp,
+                                    lineHeight = 22.sp,
+                                    modifier   = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)
+                                )
+                            }
+
+                            Spacer(Modifier.height(16.dp))
+
+                            // Botones
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Surface(
+                                    modifier = Modifier.weight(1f),
+                                    shape    = RoundedCornerShape(10.dp),
+                                    color    = Color(0xFF1A2E1A),
+                                    border   = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF388E3C)),
+                                    onClick  = { expandedGroup = -1; expandedCard = -1 }
+                                ) {
+                                    Text(
+                                        text       = "Cerrar",
+                                        color      = Color(0xFF81C784),
+                                        fontSize   = 14.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        textAlign  = TextAlign.Center,
+                                        modifier   = Modifier.padding(vertical = 12.dp)
+                                    )
+                                }
+                                Surface(
+                                    modifier = Modifier.weight(1f),
+                                    shape    = RoundedCornerShape(10.dp),
+                                    color    = Color(0xFF2E7D32),
+                                    onClick  = { onQuestionSelected(q) }
+                                ) {
+                                    Text(
+                                        text       = "Ver en chat",
+                                        color      = Color.White,
+                                        fontSize   = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        textAlign  = TextAlign.Center,
+                                        modifier   = Modifier.padding(vertical = 12.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
 // ── Avatar de AVA ──────────────────────────────────────────────────────────────
 @Composable
-private fun ARAvatar(imageRes: Int, size: Dp = 80.dp) {
+private fun ARAvatar(imageRes: Int, size: Dp = 150.dp) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
-            modifier = Modifier
-                .size(size)
-                .border(2.dp, Color(0xFF2ECC71).copy(alpha = 0.90f), CircleShape)
-                .clip(CircleShape)
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.size(size)
         ) {
+            // Fondo circular oscuro
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .clip(CircleShape)
+                    .background(Color(0xFF07111F).copy(alpha = 0.88f))
+            )
+            // Imagen completa sin recorte: Fit muestra el personaje entero
             Image(
                 painter            = painterResource(imageRes),
                 contentDescription = "AVA",
-                contentScale       = ContentScale.Crop,
-                modifier           = Modifier.fillMaxSize()
+                contentScale       = ContentScale.Fit,
+                modifier           = Modifier
+                    .fillMaxSize()
+                    .padding(10.dp)   // espacio interior → la imagen nunca toca el borde del anillo
+            )
+            // Anillo decorativo encima (no recorta nada)
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .border(2.5.dp, Color(0xFF2ECC71).copy(alpha = 0.92f), CircleShape)
             )
         }
-        Spacer(Modifier.height(5.dp))
+        Spacer(Modifier.height(6.dp))
         Surface(
-            shape  = RoundedCornerShape(6.dp),
-            color  = Color(0xFF0D1B2A).copy(alpha = 0.78f),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF2ECC71).copy(alpha = 0.40f))
+            shape  = RoundedCornerShape(8.dp),
+            color  = Color(0xFF0A1628).copy(alpha = 0.88f),
+            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF2ECC71).copy(alpha = 0.55f))
         ) {
             Text(
                 text       = "AVA",
                 color      = Color(0xFF2ECC71),
-                fontSize   = 10.sp,
+                fontSize   = 11.sp,
                 fontWeight = FontWeight.Bold,
-                modifier   = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                modifier   = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
             )
         }
     }
