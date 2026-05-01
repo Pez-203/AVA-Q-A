@@ -13,10 +13,14 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -44,18 +48,17 @@ import kotlinx.coroutines.delay
 import kotlin.math.*
 
 // Offsets de tarjetas relativos al ancla del grupo (dp)
-// ±80dp horizontal: con tarjeta de 175dp (87.5 semiancho), borde izquierdo queda
-// a 12.5dp del borde en pantalla de 360dp → visible incluso con ruido de sensor.
-// Filas de 80dp para que todas quepan verticalmente en pantallas típicas.
-// Columnas a ±93dp: con tarjeta de 175dp (87.5 semiancho), el gap entre columnas
-// es (93-87.5)*2 = 11dp → sin superposición. Filas cada 80dp.
+// Columnas a ±135dp para dejar 95dp de hueco central al avatar (80dp diámetro).
+// Semiancho de tarjeta 87.5dp → borde interior en ±47.5dp (7.5dp de margen vs avatar).
+// Borde exterior en ±222.5dp: ~42dp fuera de pantalla de 360dp — correcto en AR.
+// Filas cada 80dp, rango vertical ±200dp.
 private val Q_OFFSETS = listOf(
-    Offset(-93f, -200f), Offset(93f, -200f),
-    Offset(-93f, -120f), Offset(93f, -120f),
-    Offset(-93f,  -40f), Offset(93f,  -40f),
-    Offset(-93f,   40f), Offset(93f,   40f),
-    Offset(-93f,  120f), Offset(93f,  120f),
-    Offset(-93f,  200f), Offset(93f,  200f),
+    Offset(-135f, -200f), Offset(135f, -200f),
+    Offset(-135f, -120f), Offset(135f, -120f),
+    Offset(-135f,  -40f), Offset(135f,  -40f),
+    Offset(-135f,   40f), Offset(135f,   40f),
+    Offset(-135f,  120f), Offset(135f,  120f),
+    Offset(-135f,  200f), Offset(135f,  200f),
 )
 
 // Ancla de pantalla para cada grupo QR (dp desde el centro)
@@ -169,6 +172,12 @@ fun ARGyroscopeScreen(
     var expandedCard  by remember { mutableStateOf(-1) }
     var hoverProgress by remember { mutableStateOf(0f) }
 
+    // Cicla entre los 4 estados "explaining" cuando AVA está en reposo
+    var explainIdx by remember { mutableStateOf(0) }
+    LaunchedEffect(Unit) {
+        while (true) { delay(2500L); explainIdx = (explainIdx + 1) % 4 }
+    }
+
     // derivedStateOf: se recalcula solo cuando wx/wy o expandedGroup cambian de verdad,
     // no relanza un LaunchedEffect en cada frame del sensor.
     val hoveredPair by remember(allGroups) {
@@ -192,6 +201,15 @@ fun ARGyroscopeScreen(
     }
     val hoveredGroup = hoveredPair.first
     val hoveredCard  = hoveredPair.second
+
+    val avatarRes = when {
+        expandedGroup >= 0 -> R.drawable.ava_success
+        hoveredGroup >= 0  -> R.drawable.ava_think
+        else -> when (explainIdx) {
+            0 -> R.drawable.ava_explaining1; 1 -> R.drawable.ava_explaining2
+            2 -> R.drawable.ava_explaining3; else -> R.drawable.ava_explaining4
+        }
+    }
 
     // Timer de selección: solo relanza cuando el hover realmente cambia (no en cada frame)
     LaunchedEffect(hoveredPair) {
@@ -273,6 +291,19 @@ fun ARGyroscopeScreen(
                         onSendToChat  = { onQuestionSelected(question) }
                     )
                 }
+            }
+        }
+
+        // ── CAPA 3.5: Avatar anclado al mundo (mismo sistema que las tarjetas) ──
+        val avSize = 80.dp
+        allGroups.indices.forEach { gIdx ->
+            val anchor = groupAnchor(gIdx)
+            val avCX = swDp / 2 + (anchor.x - wx).dp
+            val avCY = shDp / 2 + (anchor.y - wy).dp
+            Box(
+                modifier = Modifier.absoluteOffset(x = avCX - avSize / 2, y = avCY - avSize / 2)
+            ) {
+                ARAvatar(imageRes = avatarRes, size = avSize)
             }
         }
 
@@ -389,6 +420,40 @@ fun ARGyroscopeScreen(
     }
 }
 
+// ── Avatar de AVA ──────────────────────────────────────────────────────────────
+@Composable
+private fun ARAvatar(imageRes: Int, size: Dp = 80.dp) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            modifier = Modifier
+                .size(size)
+                .border(2.dp, Color(0xFF2ECC71).copy(alpha = 0.90f), CircleShape)
+                .clip(CircleShape)
+        ) {
+            Image(
+                painter            = painterResource(imageRes),
+                contentDescription = "AVA",
+                contentScale       = ContentScale.Crop,
+                modifier           = Modifier.fillMaxSize()
+            )
+        }
+        Spacer(Modifier.height(5.dp))
+        Surface(
+            shape  = RoundedCornerShape(6.dp),
+            color  = Color(0xFF0D1B2A).copy(alpha = 0.78f),
+            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF2ECC71).copy(alpha = 0.40f))
+        ) {
+            Text(
+                text       = "AVA",
+                color      = Color(0xFF2ECC71),
+                fontSize   = 10.sp,
+                fontWeight = FontWeight.Bold,
+                modifier   = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+            )
+        }
+    }
+}
+
 // ── Tarjeta de pregunta expandible ───────────────────────────────────────────
 @Composable
 private fun ARQuestionCard(
@@ -402,8 +467,8 @@ private fun ARQuestionCard(
     val borderW = if (isHovered || isExpanded) 2.dp else 1.dp
     val bgColor = when {
         isExpanded -> Color(0xFF0D2A12)
-        isHovered  -> Color(0xFF1B5E20)
-        else       -> Color(0xFF0D1B2A).copy(alpha = 0.95f)
+        isHovered  -> Color(0xFF1B5E20).copy(alpha = 0.90f)
+        else       -> Color(0xFF0D1B2A).copy(alpha = 0.80f)
     }
     val borderColor = when {
         isExpanded -> Color(0xFF4CAF50)
