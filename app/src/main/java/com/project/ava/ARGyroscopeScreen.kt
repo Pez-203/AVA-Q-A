@@ -32,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -289,11 +290,29 @@ fun ARGyroscopeScreen(
                 val isExpanded = expandedGroup == gIdx && expandedCard == cIdx
                 val dimmed     = expandedGroup >= 0
 
+                val worldX = anchor.x + off.x
+                val worldY = anchor.y + off.y
+                val distFromCenter = sqrt((worldX - wx) * (worldX - wx) + (worldY - wy) * (worldY - wy))
+                val depthT = (distFromCenter / 450f).coerceIn(0f, 1f)
+                val targetScale = 1.25f - depthT * 0.60f
+                val targetAlpha = 1.0f  - depthT * 0.45f
+                val animatedScale by animateFloatAsState(
+                    targetValue   = targetScale,
+                    animationSpec = spring(stiffness = Spring.StiffnessLow),
+                    label         = "depthScale"
+                )
+                val animatedAlpha by animateFloatAsState(
+                    targetValue   = targetAlpha,
+                    animationSpec = spring(stiffness = Spring.StiffnessLow),
+                    label         = "depthAlpha"
+                )
+
                 Box(
                     modifier = Modifier
                         .absoluteOffset(x = cardCX - cardW / 2, y = cardCY - baseCardH / 2)
                         .width(cardW)
-                        .alpha(if (dimmed) 0f else 1f)
+                        .scale(animatedScale)
+                        .alpha(if (dimmed) 0f else animatedAlpha)
                 ) {
                     ARQuestionCard(
                         question      = question,
