@@ -98,9 +98,8 @@ private fun rememberParallaxOffset(): State<Offset> {
         val sensor = sm.getDefaultSensor(Sensor.TYPE_GAME_ROTATION_VECTOR)
             ?: sm.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
 
-        // 500 dp/rad → 10° ≈ 87dp (rango natural tipo Pokémon GO)
-        // asin está acotado a [-π/2, π/2], así que el rango máximo es ±785dp — sin clamp necesario
-        val sens = 500f
+        // 900 dp/rad → 10° ≈ 157dp: movimientos pequeños cubren más pantalla
+        val sens = 900f
 
         val listener = object : SensorEventListener {
             private val rm    = FloatArray(9)
@@ -294,8 +293,8 @@ fun ARGyroscopeScreen(
                 val worldY = anchor.y + off.y
                 val distFromCenter = sqrt((worldX - wx) * (worldX - wx) + (worldY - wy) * (worldY - wy))
                 val depthT = (distFromCenter / 450f).coerceIn(0f, 1f)
-                val targetScale = 1.25f - depthT * 0.60f
-                val targetAlpha = 1.0f  - depthT * 0.45f
+                val targetScale = 1.35f - depthT * 0.85f
+                val targetAlpha = 1.0f  - depthT * 0.55f
                 val animatedScale by animateFloatAsState(
                     targetValue   = targetScale,
                     animationSpec = spring(stiffness = Spring.StiffnessLow),
@@ -388,35 +387,31 @@ fun ARGyroscopeScreen(
                 drawLine(qCol, Offset(r, b - qrC), Offset(r, b), swQ)
             }
 
-            // Retícula FIJA en el centro — nunca se mueve
-            if (expandedGroup < 0) {
+            // Arco de progreso de selección — fijo en el centro
+            if (expandedGroup < 0 && hoveredGroup >= 0 && hoverProgress > 0f) {
                 val cx  = centerX; val cy = centerY
-                val rad = 22.dp.toPx()
-                val arm = 14.dp.toPx(); val gap = 7.dp.toPx()
-                val swC = 2.dp.toPx()
-                val isAiming = hoveredGroup >= 0
-                val crossCol = Color(0xFF2ECC71).copy(alpha = if (isAiming) 1f else 0.65f)
-
-                drawCircle(Color(0xFF2ECC71).copy(alpha = 0.08f), rad + 6.dp.toPx(), Offset(cx, cy))
-                drawCircle(crossCol, rad, Offset(cx, cy), style = Stroke(swC))
-                drawCircle(crossCol, 4.dp.toPx(), Offset(cx, cy))
-                drawLine(crossCol, Offset(cx - rad - arm - gap, cy), Offset(cx - rad - gap, cy), swC)
-                drawLine(crossCol, Offset(cx + rad + gap, cy), Offset(cx + rad + gap + arm, cy), swC)
-                drawLine(crossCol, Offset(cx, cy - rad - arm - gap), Offset(cx, cy - rad - gap), swC)
-                drawLine(crossCol, Offset(cx, cy + rad + gap), Offset(cx, cy + rad + gap + arm), swC)
-
-                if (isAiming && hoverProgress > 0f) {
-                    drawArc(
-                        color      = Color(0xFF4CAF50),
-                        startAngle = -90f,
-                        sweepAngle = 360f * hoverProgress,
-                        useCenter  = false,
-                        topLeft    = Offset(cx - rad, cy - rad),
-                        size       = Size(rad * 2f, rad * 2f),
-                        style      = Stroke(3.5f.dp.toPx(), cap = StrokeCap.Round)
-                    )
-                }
+                val rad = 38.dp.toPx()
+                drawArc(
+                    color      = Color(0xFF4CAF50),
+                    startAngle = -90f,
+                    sweepAngle = 360f * hoverProgress,
+                    useCenter  = false,
+                    topLeft    = Offset(cx - rad, cy - rad),
+                    size       = Size(rad * 2f, rad * 2f),
+                    style      = Stroke(3.5f.dp.toPx(), cap = StrokeCap.Round)
+                )
             }
+        }
+
+        // ── CAPA 4.5: Cursor de mano FIJO en el centro ───────────────────────
+        if (expandedGroup < 0) {
+            val cursorRes = if (hoveredGroup >= 0) R.drawable.hand_cursor_selection
+                            else                   R.drawable.hand_cursor_open
+            Image(
+                painter            = painterResource(cursorRes),
+                contentDescription = null,
+                modifier           = Modifier.size(64.dp).align(Alignment.Center)
+            )
         }
 
         // ── CAPA 5: Botón atrás ───────────────────────────────────────────────
