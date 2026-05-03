@@ -88,49 +88,49 @@ fun LoadingScreen(
         Box(
             modifier = Modifier
                 .align(Alignment.CenterHorizontally)
-                .size(100.dp),
+                .size(140.dp),
             contentAlignment = Alignment.Center
         ) {
             CircularProgressIndicator(
                 modifier = Modifier.fillMaxSize(),
                 color = Color(0xFF2E7D32),
-                strokeWidth = 2.dp,
+                strokeWidth = 3.dp,
                 trackColor = Color(0xFF2E7D32).copy(alpha = 0.1f)
             )
             Box(
                 modifier = Modifier
-                    .size(60.dp)
+                    .size(90.dp)
                     .background(Color(0xFFF1F8E9), shape = CircleShape)
-                    .border(1.dp, Color(0xFF2E7D32), CircleShape),
+                    .border(1.5.dp, Color(0xFF2E7D32), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_qr_code_dark),
                     contentDescription = null,
                     tint = Color(0xFF1E2A38),
-                    modifier = Modifier.size(30.dp)
+                    modifier = Modifier.size(48.dp)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         Text(
             text = "Cargando Recursos....",
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center,
-            fontSize = 18.sp,
+            fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
             color = Color(0xFF2E7D32)
         )
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(40.dp))
 
         // Progress Steps
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 32.dp),
+                .padding(horizontal = 24.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -140,8 +140,8 @@ fun LoadingScreen(
                 isCompleted = true,
                 isActive = false
             )
-            
-            Box(modifier = Modifier.weight(1f).height(1.dp).background(Color.Gray).padding(horizontal = 4.dp))
+
+            Box(modifier = Modifier.weight(1f).height(1.dp).background(Color.Gray).padding(horizontal = 8.dp))
 
             ProgressStep(
                 icon = Icons.Default.CheckCircle,
@@ -150,7 +150,7 @@ fun LoadingScreen(
                 isActive = false
             )
 
-            Box(modifier = Modifier.weight(1f).height(1.dp).background(Color.Gray).padding(horizontal = 4.dp))
+            Box(modifier = Modifier.weight(1f).height(1.dp).background(Color.Gray).padding(horizontal = 8.dp))
 
             ProgressStep(
                 icon = Icons.Default.AccountCircle,
@@ -161,7 +161,7 @@ fun LoadingScreen(
         }
 
         Spacer(modifier = Modifier.height(40.dp))
-        
+
         HorizontalDivider(modifier = Modifier.padding(horizontal = 24.dp), color = Color(0xFFC8E6C9), thickness = 1.dp)
 
         // Info Card and Image
@@ -169,64 +169,71 @@ fun LoadingScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .padding(24.dp)
+                .padding(bottom = 24.dp, start = 24.dp, end = 24.dp),
+            contentAlignment = Alignment.BottomCenter
         ) {
-            // "Sabias que" Card
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 80.dp),
-                shape = RoundedCornerShape(8.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F8E9)),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF2E7D32))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy((-90).dp) // Brings them closer together
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
+                // "Sabias que" Card
+                Card(
+                    modifier = Modifier
+                        .weight(2f) // Increased weight to make the card wider
+                        .padding(bottom = 10.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F8E9)),
+                    border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFF2E7D32))
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        modifier = Modifier.padding(16.dp)
                     ) {
-                        Text(
-                            text = "Sabias que..",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF2E7D32),
-                            modifier = Modifier.weight(1f)
-                        )
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .background(Color.White, CircleShape)
-                                .border(1.dp, Color.Gray, CircleShape),
-                            contentAlignment = Alignment.Center
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_lightbulb),
-                                contentDescription = null,
-                                tint = Color(0xFF1E2A38),
-                                modifier = Modifier.size(24.dp)
+                            Text(
+                                text = "Sabias que..",
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF2E7D32),
+                                modifier = Modifier.weight(1f)
                             )
+                            Box(
+                                modifier = Modifier
+                                    .size(50.dp)
+                                    .background(Color.White, CircleShape)
+                                    .border(1.dp, Color.Gray, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_lightbulb),
+                                    contentDescription = null,
+                                    tint = Color(0xFF1E2A38),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                         }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "AVA puede responder preguntas del sector escaneado",
+                            fontSize = 16.sp,
+                            color = Color(0xFF1E2A38).copy(alpha = 0.8f),
+                            lineHeight = 22.sp
+                        )
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "AVA puede responder preguntas del sector escaneado",
-                        fontSize = 16.sp,
-                        color = Color(0xFF1E2A38).copy(alpha = 0.8f)
-                    )
                 }
-            }
 
-            // Character Image
-            Image(
-                painter = painterResource(id = R.drawable.ava_success),
-                contentDescription = "AVA",
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .size(200.dp)
-                    .offset(y = 20.dp),
-                contentScale = ContentScale.Fit
-            )
+                // Character Image
+                Image(
+                    painter = painterResource(id = R.drawable.ava_success),
+                    contentDescription = "AVA",
+                    modifier = Modifier
+                        .size(235.dp) // Large avatar
+                        .offset(x = 50.dp, y = 30.dp), // Increased x offset to make room for wider card
+                    contentScale = ContentScale.Fit
+                )
+            }
         }
     }
 }
@@ -243,7 +250,7 @@ fun ProgressStep(
     ) {
         Box(
             modifier = Modifier
-                .size(50.dp)
+                .size(70.dp)
                 .background(
                     if (isCompleted || isActive) Color(0xFF2E7D32) else Color(0xFFE0E0E0),
                     CircleShape
@@ -254,29 +261,29 @@ fun ProgressStep(
                 imageVector = icon,
                 contentDescription = null,
                 tint = Color.White,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(36.dp)
             )
         }
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         Text(
             text = label,
-            fontSize = 12.sp,
+            fontSize = 14.sp,
             fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
             color = Color.Black
         )
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         if (isCompleted) {
             Icon(
                 painter = painterResource(id = R.drawable.ic_check_circle),
                 contentDescription = null,
                 tint = Color(0xFF2E7D32),
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(24.dp)
             )
         } else {
             Box(
                 modifier = Modifier
-                    .size(20.dp)
-                    .border(1.dp, Color.Gray, CircleShape)
+                    .size(24.dp)
+                    .border(1.5.dp, Color.Gray, CircleShape)
             )
         }
     }
